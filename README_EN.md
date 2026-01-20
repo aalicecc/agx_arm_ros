@@ -239,10 +239,10 @@ ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py arm_type:=nero end_effec
 #### RViz Control
 ```bash
 # For Nero arm
-ros2 launch agx_arm_description gazebo.launch.py arm_type:=nero 
+ros2 launch nero_description gazebo.launch.py 
 
 # For Piper arm 
-ros2 launch agx_arm_description gazebo.launch.py arm_type:=piper 
+ros2 launch piper_description gazebo.launch.py 
 ```
 
 #### MoveIt Integration

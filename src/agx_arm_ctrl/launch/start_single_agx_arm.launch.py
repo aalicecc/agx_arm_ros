@@ -13,7 +13,6 @@ def generate_launch_description():
         default_value='info',
         description='Logging level (debug, info, warn, error, fatal).'
     )
-
     # Arguments
     can_port_arg = DeclareLaunchArgument(
         'can_port',
@@ -21,9 +20,15 @@ def generate_launch_description():
         description='CAN port to be used by the AGX Arm node.'
     )
 
+    pub_rate_arg = DeclareLaunchArgument(
+        'pub_rate',
+        default_value='200',
+        description='Publishing rate for the AGX Arm node.'
+    )
+    
     auto_enable_arg = DeclareLaunchArgument(
         'auto_enable',
-        default_value='true',
+        default_value= 'True',
         description='Automatically enable the AGX Arm node.'
     )
 
@@ -34,32 +39,16 @@ def generate_launch_description():
         choices=['piper', 'nero']
     )
 
-    # TODO
-    end_effector_type_arg = DeclareLaunchArgument(
-        'end_effector_type',
-        default_value='test0',
-        description='Type of end effector.',
-        choices=['test0', 'test1']
+    speed_percent_arg = DeclareLaunchArgument(
+        'speed_percent',
+        default_value='100',
+        description='Movement speed as a percentage of maximum speed.'
     )
 
-    use_upper_ik_arg = DeclareLaunchArgument(
-        'use_upper_ik',
-        default_value='true',
-        description='Whether to use upper IK solver.'
-    )
-
-    # Default URDF path will be set based on arm_type in the node
-    agx_arm_desc_share = get_package_share_directory('agx_arm_description')
-    default_urdf_path = PathJoinSubstitution([
-        agx_arm_desc_share,
-        LaunchConfiguration("arm_type"),
-        "urdf",
-        "nero.urdf"
-    ])
-    urdf_path_arg = DeclareLaunchArgument(
-        'urdf_path',
-        default_value=default_urdf_path,
-        description='Path to the URDF file for the robot.'
+    enable_timeout_arg = DeclareLaunchArgument(
+        'enable_timeout',
+        default_value='5.0',
+        description='Timeout in seconds for arm enable/disable operations.'
     )
 
     # Node
@@ -70,12 +59,12 @@ def generate_launch_description():
         output='screen',
         ros_arguments=['--log-level', LaunchConfiguration('log_level')],
         parameters=[{
-            'can_port': LaunchConfiguration('can_port'),
+            'can_port': LaunchConfiguration('can_port'),    
+            'pub_rate': LaunchConfiguration('pub_rate'),
             'auto_enable': LaunchConfiguration('auto_enable'),
             'arm_type': LaunchConfiguration('arm_type'),
-            'end_effector_type': LaunchConfiguration('end_effector_type'),
-            'use_upper_ik': LaunchConfiguration('use_upper_ik'),
-            'urdf_path': LaunchConfiguration('urdf_path'),
+            'speed_percent': LaunchConfiguration('speed_percent'),
+            'enable_timeout': LaunchConfiguration('enable_timeout'),
         }],
         remappings=[
             # feedback topics
@@ -96,10 +85,10 @@ def generate_launch_description():
     return LaunchDescription([
         log_level_arg,
         can_port_arg,
+        pub_rate_arg,
         auto_enable_arg,
         arm_type_arg,
-        end_effector_type_arg,
-        use_upper_ik_arg,
-        urdf_path_arg,
+        speed_percent_arg,
+        enable_timeout_arg,
         agx_arm_node
     ])
