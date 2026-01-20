@@ -16,8 +16,7 @@ class AgxArmRosNode(Node):
     def __init__(self):
         super().__init__('agx_arm_ctrl_single_node')
 
-        ### pamameter
-        # declare parameters
+        ### ros parameters
         self.declare_parameter('can_port', 'can0')
         self.declare_parameter('pub_rate', 200)
         self.declare_parameter('auto_enable', False)
@@ -39,40 +38,34 @@ class AgxArmRosNode(Node):
         self.get_logger().info(f"speed_percent: {self.speed_percent}")
         self.get_logger().info(f"enable_timeout: {self.enable_timeout}")
 
+        ### variables
         self.enable_flag = False
 
-        ### Publishers
-        # 机械臂关节状态
+        ### publishers
         self.joint_states_pub = self.create_publisher(JointState, '/feedback/joint_states', 1)
-        # 机械臂末端位姿
         self.end_pose_pub = self.create_publisher(PoseStamped, '/feedback/end_pose', 1)
-        # TODO: 
+        # TODO:
         # arm_status_pub
         # joint_ctrl
 
         ### subscribers
-        # 机械臂正运动学(不包括末端执行器)
         self.create_subscription(JointState, '/control/joint_states', self.joint_callback, 1)
-        # 机械臂逆运动学
         self.create_subscription(PoseStamped, '/control/end_pose', self.pose_callback, 1)
 
         ### services
-        # 机械臂使能
         self.create_service(SetBool, 'enable_agx_arm', self.enable_callback)
-        # 机械臂回零
         self.create_service(Empty, 'move_home', self.home_callback)
 
         ### publisher thread
         self.publisher_thread = threading.Thread(target=self.publish_thread)
         self.publisher_thread.start()
 
-        ### 
+        ### AgxArmFactory
         config = create_agx_arm_config(
             robot=self.arm_type,
             comm="can",
             channel=self.can_port
         )
-
         self.agx_arm = AgxArmFactory.create_arm(config)
         self.agx_arm.connect()
 
@@ -83,22 +76,12 @@ class AgxArmRosNode(Node):
         ros_time.nanosec = int((timestamp - ros_time.sec) * 1e9)
         return ros_time
 
-    def _create_joint_state_msg(self, joint_names):
-        state = JointState()
-        state.name = joint_names
-        len_names = len(joint_names)
-        state.position = [0.0] * len_names
-        state.velocity = [0.0] * len_names
-        state.effort = [0.0] * len_names
-        return state
-
     def _safe_get_value(self, array, index, default=0.0):
         if index >= len(array):
             return default
         value = array[index]
         return default if math.isnan(value) else value
     
-    # 使能全部关节包括末端执行器
     def _enable_arm(self, enable: bool = True, timeout: float = 5.0) -> bool:
         start_time = time.time()
         if not enable:
@@ -120,14 +103,11 @@ class AgxArmRosNode(Node):
 
     
     def publish_thread(self):
-        """Publish messages from the robotic arm"""
         rate = self.create_rate(self.pub_rate)
 
-        # TODO:自动使能:调用api使能关节包括末端执行器
         while rclpy.ok() and self.auto_enable:
-            # 判断是否全部关节使能
             enable_flag = all(self.agx_arm.get_joints_enable_status_list())
-            self.get_logger().info(f"Enable status: {enable_flag}")
+            # self.get_logger().info(f"All joints enable status is {enable_flag}")
 
             if enable_flag:
                 break
@@ -137,49 +117,44 @@ class AgxArmRosNode(Node):
                     self.get_logger().error("Failed to auto-enable the arm")
                     break
 
-        # Main publishing loop
-        # 发布信息
+        # publishing loop
         while rclpy.ok():
             if self.agx_arm.is_ok():
-                self.PublishArmJointAndGripper()
-                # self.PublishArmEndPose()
+                self.publish_arm_joint_and_gripper_states()
+                # self.publish_arm_end_pose()
 
             rate.sleep()
 
-    def PublishArmJointStates(self):
-        """Publish arm joint states"""
-        # 获取关节角度
+    def publish_arm_joint_states(self):
         joint_states = self.agx_arm.get_joint_states()
         if joint_states is None or joint_states.hz <= 0:
             return
+        
+        len_names = len(self.joint_names)
 
-        # 转换为JointState消息
-        self.joint_states = self._create_joint_state_msg(self.joint_names)
+        self.joint_states = JointState()
+        self.joint_states.name = self.joint_names
+        self.joint_states.position = [0.0] * len_names
+        self.joint_states.velocity = [0.0] * len_names
+        self.joint_states.effort = [0.0] * len_names
         self.joint_states.position = joint_states.msg
         self.joint_states.header.stamp = self._float_to_ros_time(joint_states.timestamp)
         self.joint_states_pub.publish(self.joint_states)
 
-    def PublishArmGripperState(self):
+    def publish_arm_gripper_state(self):
         pass
 
-    # 发布关节角度和夹爪状态
-    def PublishArmJointAndGripper(self):
-        """Publish arm joint states and gripper state"""
-        self.PublishArmJointStates()
-        self.PublishArmGripperState()
+    def publish_arm_joint_and_gripper_states(self):
+        self.publish_arm_joint_states()
+        self.publish_arm_gripper_state()
 
-    # 发布末端位姿
-    def PublishArmEndPose(self):
-        """Publish end effector pose"""
-        # 获取末端位姿
+    def publish_arm_end_pose(self):
         end_pose = self.agx_arm.get_ee_pose()
         if end_pose is None or end_pose.hz <= 0:
             return
 
-        # 转换为PoseStamped消息
         pose = Pose()
         pose.position.x, pose.position.y, pose.position.z = end_pose.msg[0:3]
-        # convert Euler angles to quaternion
         roll, pitch, yaw = end_pose.msg[3:6]
         quaternion = R.from_euler('xyz', [roll, pitch, yaw]).as_quat()
         pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = quaternion
@@ -190,68 +165,54 @@ class AgxArmRosNode(Node):
         stamped_pose.header.stamp = self._float_to_ros_time(end_pose.timestamp)
         self.end_pose_pub.publish(stamped_pose)
 
-    # 正运动学
     def joint_callback(self, joint_state: JointState):
-        # 判断机械臂连接正常且使能
         joint_states = self.agx_arm.get_joint_states()
         if joint_states is None or joint_states.hz <= 0 or not self.enable_flag:
             self.get_logger().warn("Agx_arm is not connected or not enabled, cannot control end effector pose")
             return
 
-        # 提取关节角度、速度、力矩
         joint_pos, joint_vel, joint_eff = {}, {}, {}
-        # 遍历所有关节
         for idx, joint_name in enumerate(joint_state.name):
-            # 提取对应的角度、速度、力矩，处理 NaN 值和数组越界
             joint_pos[joint_name] = self._safe_get_value(joint_state.position, idx)
             joint_vel[joint_name] = self._safe_get_value(joint_state.velocity, idx)
             joint_eff[joint_name] = self._safe_get_value(joint_state.effort, idx)
             
-        # Control joints
-        # 判断是否处于示教模式,如果是则不控制
+        # control joints
         arm_status = self.agx_arm.get_arm_status()
         if arm_status is not None and arm_status.msg.ctrl_mode == 0x02:
             self.get_logger().warn("Cannot control joints in teach mode")
             return
         else:
-            # 控制机械臂关节角度,使用move_j
             self.agx_arm.set_speed_percent(self.speed_percent)
             self.agx_arm.set_motion_mode("j")
-            # TODO:需要加时延吗?
             self.agx_arm.move_j([joint_pos.get(f'joint{i}', 0) for i in range(1, self.joint_count + 1)])
             
-    # 逆运动学
     def pose_callback(self, pose_data: PoseStamped):
         joint_states = self.agx_arm.get_joint_states()
         if joint_states is None or joint_states.hz <= 0 or not self.enable_flag:
             self.get_logger().warn("Agx_arm is not connected or not enabled, cannot control end effector pose")
             return
 
-        # 判断是否处于示教模式,如果是则不控制
         arm_status = self.agx_arm.get_arm_status()
         if arm_status is not None and arm_status.msg.ctrl_mode == 0x02:
             self.get_logger().warn("Cannot control end effector pose in teach mode")
             return
 
-        # Convert quaternion to Euler angles
         quaternion = [pose_data.pose.orientation.x,
                       pose_data.pose.orientation.y,
                       pose_data.pose.orientation.z,
                       pose_data.pose.orientation.w]
-
         pose_xyz = [pose_data.pose.position.x, pose_data.pose.position.y, pose_data.pose.position.z]
         euler_angles = R.from_quat(quaternion).as_euler('xyz', degrees=False)  # radians
         pose_cmd = pose_xyz + euler_angles.tolist()
 
-        # Control end effector pose
+        # control end effector pose
         self.agx_arm.set_speed_percent(self.speed_percent)
         self.agx_arm.set_motion_mode("p")  # move_p mode
         self.agx_arm.move_p(pose_cmd)
         
-    # 机械臂使能服务回调
     def enable_callback(self, request, response):
-        """Service callback function for enabling the robotic arm"""
-        self.get_logger().info(f"Received enable request: {request.data}")
+        # self.get_logger().info(f"Received enable request: {request.data}")
         
         try:
             joint_states = self.agx_arm.get_joint_states()
@@ -285,8 +246,7 @@ class AgxArmRosNode(Node):
         return response
 
     def home_callback(self, request, response):
-        """Service callback function for moving the robotic arm to home position"""
-        self.get_logger().info("Received move home request")
+        # self.get_logger().info("Received move home request")
         
         try:
             joint_states = self.agx_arm.get_joint_states()
