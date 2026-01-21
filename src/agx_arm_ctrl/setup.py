@@ -27,7 +27,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'agx_arm_single_ctrl = agx_arm_ctrl.agx_arm_ctrl_single_node:main',
+            'agx_arm_ctrl_single = agx_arm_ctrl.agx_arm_ctrl_single_node:main',
         ],
     },
 )

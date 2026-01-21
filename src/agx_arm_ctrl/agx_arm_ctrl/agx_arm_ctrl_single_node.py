@@ -19,7 +19,7 @@ class AgxArmRosNode(Node):
         ### ros parameters
         self.declare_parameter('can_port', 'can0')
         self.declare_parameter('pub_rate', 200)
-        self.declare_parameter('auto_enable', False)
+        self.declare_parameter('auto_enable', True)
         self.declare_parameter('arm_type', 'piper')
         self.declare_parameter('speed_percent', 100)
         self.declare_parameter('enable_timeout', 5.0)
@@ -38,15 +38,9 @@ class AgxArmRosNode(Node):
         self.get_logger().info(f"speed_percent: {self.speed_percent}")
         self.get_logger().info(f"enable_timeout: {self.enable_timeout}")
 
-        ### variables
-        self.enable_flag = False
-
         ### publishers
         self.joint_states_pub = self.create_publisher(JointState, '/feedback/joint_states', 1)
         self.end_pose_pub = self.create_publisher(PoseStamped, '/feedback/end_pose', 1)
-        # TODO:
-        # arm_status_pub
-        # joint_ctrl
 
         ### subscribers
         self.create_subscription(JointState, '/control/joint_states', self.joint_callback, 1)
@@ -54,11 +48,8 @@ class AgxArmRosNode(Node):
 
         ### services
         self.create_service(SetBool, 'enable_agx_arm', self.enable_callback)
-        self.create_service(Empty, 'move_home', self.home_callback)
-
-        ### publisher thread
-        self.publisher_thread = threading.Thread(target=self.publish_thread)
-        self.publisher_thread.start()
+        self.create_service(Empty, 'move_home', self.move_home_callback)
+        self.create_service(Empty, 'exit_teach_mode', self.exit_teach_mode_callback)
 
         ### AgxArmFactory
         config = create_agx_arm_config(
@@ -68,6 +59,15 @@ class AgxArmRosNode(Node):
         )
         self.agx_arm = AgxArmFactory.create_arm(config)
         self.agx_arm.connect()
+
+        ### variables
+        self.enable_flag = False
+        self.arm_joint_names = list(config["joint_limit"].keys())
+        self.arm_joint_count = len(self.arm_joint_names)
+
+        ### publisher thread
+        self.publisher_thread = threading.Thread(target=self.publish_thread)
+        self.publisher_thread.start()
 
     def _float_to_ros_time(self, timestamp: float) -> Time:
         """Convert float timestamp to ROS Time message"""
@@ -80,48 +80,45 @@ class AgxArmRosNode(Node):
         if index >= len(array):
             return default
         value = array[index]
-        return default if math.isnan(value) else value
-    
+        return default if math.isnan(value) else value  
+
     def _enable_arm(self, enable: bool = True, timeout: float = 5.0) -> bool:
         start_time = time.time()
-        if not enable:
-            while not self.agx_arm.disable():
-                if time.time() - start_time > timeout:
-                    self.get_logger().error(f"Timeout waiting for arm to disable after {timeout} seconds")
-                    return False
-                time.sleep(0.01)
-            self.get_logger().info("Arm disabled successfully")
-            return True
+        action_name = "enable" if enable else "disable"
+        
+        while not (self.agx_arm.enable() if enable else self.agx_arm.disable()):
+            if time.time() - start_time > timeout:
+                self.get_logger().error(
+                    f"Timeout waiting for arm to {action_name} after {timeout} seconds"
+                )
+                return False
+            time.sleep(0.01)
+        
+        joints_status = self.agx_arm.get_joints_enable_status_list()
+        all_joints_in_target_status = all(joints_status) if enable else not all(joints_status) 
+        
+        if all_joints_in_target_status:
+            self.enable_flag = True if enable else False
+            self.get_logger().info(f"All joints {action_name} status is {self.enable_flag}")
         else:
-            while not self.agx_arm.enable():
-                if time.time() - start_time > timeout:
-                    self.get_logger().error(f"Timeout waiting for arm to enable after {timeout} seconds")
-                    return False
-                time.sleep(0.01)
-            self.get_logger().info("Arm enabled successfully")
-            return True
+            self.get_logger().warn(
+                f"Not all joints are {action_name}d after {action_name}ing the arm"
+            )
+        
+        return True
 
-    
     def publish_thread(self):
         rate = self.create_rate(self.pub_rate)
 
-        while rclpy.ok() and self.auto_enable:
-            enable_flag = all(self.agx_arm.get_joints_enable_status_list())
-            # self.get_logger().info(f"All joints enable status is {enable_flag}")
-
-            if enable_flag:
-                break
-            else:
-                enable_success = self._enable_arm(True)
-                if not enable_success:
-                    self.get_logger().error("Failed to auto-enable the arm")
-                    break
+        if rclpy.ok() and self.auto_enable:
+            if not self._enable_arm(True):
+                self.get_logger().error("Failed to auto-enable the arm")
 
         # publishing loop
         while rclpy.ok():
             if self.agx_arm.is_ok():
-                self.publish_arm_joint_and_gripper_states()
-                # self.publish_arm_end_pose()
+                self.publish_arm_joint_and_effector_states()
+                self.publish_arm_end_pose()
 
             rate.sleep()
 
@@ -129,24 +126,22 @@ class AgxArmRosNode(Node):
         joint_states = self.agx_arm.get_joint_states()
         if joint_states is None or joint_states.hz <= 0:
             return
-        
-        len_names = len(self.joint_names)
 
         self.joint_states = JointState()
-        self.joint_states.name = self.joint_names
-        self.joint_states.position = [0.0] * len_names
-        self.joint_states.velocity = [0.0] * len_names
-        self.joint_states.effort = [0.0] * len_names
+        self.joint_states.name = self.arm_joint_names
+        self.joint_states.position = [0.0] * self.arm_joint_count
+        self.joint_states.velocity = [0.0] * self.arm_joint_count
+        self.joint_states.effort = [0.0] * self.arm_joint_count
         self.joint_states.position = joint_states.msg
         self.joint_states.header.stamp = self._float_to_ros_time(joint_states.timestamp)
         self.joint_states_pub.publish(self.joint_states)
 
-    def publish_arm_gripper_state(self):
+    def publish_effector_state(self):
         pass
 
-    def publish_arm_joint_and_gripper_states(self):
+    def publish_arm_joint_and_effector_states(self):
         self.publish_arm_joint_states()
-        self.publish_arm_gripper_state()
+        self.publish_effector_state()
 
     def publish_arm_end_pose(self):
         end_pose = self.agx_arm.get_ee_pose()
@@ -158,7 +153,6 @@ class AgxArmRosNode(Node):
         roll, pitch, yaw = end_pose.msg[3:6]
         quaternion = R.from_euler('xyz', [roll, pitch, yaw]).as_quat()
         pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = quaternion
-        # self.get_logger().info(f"End effector pose: {pose.position.x}, {pose.position.y}, {pose.position.z}, {roll * self.rad2deg}, {pitch * self.rad2deg}, {yaw * self.rad2deg}")
         
         stamped_pose = PoseStamped()
         stamped_pose.pose = pose
@@ -185,7 +179,7 @@ class AgxArmRosNode(Node):
         else:
             self.agx_arm.set_speed_percent(self.speed_percent)
             self.agx_arm.set_motion_mode("j")
-            self.agx_arm.move_j([joint_pos.get(f'joint{i}', 0) for i in range(1, self.joint_count + 1)])
+            self.agx_arm.move_j([joint_pos.get(f'joint{i}', 0) for i in range(1, self.arm_joint_count + 1)])
             
     def pose_callback(self, pose_data: PoseStamped):
         joint_states = self.agx_arm.get_joint_states()
@@ -212,42 +206,23 @@ class AgxArmRosNode(Node):
         self.agx_arm.move_p(pose_cmd)
         
     def enable_callback(self, request, response):
-        # self.get_logger().info(f"Received enable request: {request.data}")
-        
         try:
             joint_states = self.agx_arm.get_joint_states()
             if joint_states is None or joint_states.hz <= 0:
                 response.success = False
-                response.message = "Agx_arm is not connected, cannot set enable state"
+                self.get_logger().warn("Agx_arm is not connected, cannot set enable state")
             elif request.data:
-                enable_success = self._enable_arm(True)
-                if enable_success:
-                    self.enable_flag = all(self.agx_arm.get_joints_enable_status_list())
-                    response.success = True
-                    response.message = "Agx_arm enabled successfully"
-                else:
-                    response.success = False
-                    response.message = "Failed to enable Agx_arm"
+                response.success = True if self._enable_arm(True) else False
             else:
-                disable_success = self._enable_arm(False)
-                if disable_success:
-                    self.enable_flag = all(self.agx_arm.get_joints_enable_status_list())
-                    response.success = True
-                    response.message = "Agx_arm disabled successfully"
-                else:
-                    response.success = False
-                    response.message = "Failed to disable Agx_arm"
+                response.success = True if self._enable_arm(False) else False
             
         except Exception as e:
             response.success = False
-            response.message = f"Failed to set enable state: {str(e)}"
-            self.get_logger().error(response.message)
+            self.get_logger().error(f"Failed to set enable state: {str(e)}")
             
         return response
 
-    def home_callback(self, request, response):
-        # self.get_logger().info("Received move home request")
-        
+    def move_home_callback(self, request, response):
         try:
             joint_states = self.agx_arm.get_joint_states()
             if joint_states is None or joint_states.hz <= 0:
@@ -260,10 +235,27 @@ class AgxArmRosNode(Node):
                 else:
                     self.agx_arm.set_speed_percent(self.speed_percent)
                     self.agx_arm.set_motion_mode("j")
-                    self.agx_arm.move_j([0] * self.joint_count)
+                    self.agx_arm.move_j([0] * self.arm_joint_count)
                 self.get_logger().info("Agx_arm moved to home position successfully")
             else:
                 self.get_logger().warn("Agx_arm is not enabled, cannot move to home position")
+        except Exception as e:
+            self.get_logger().error(f"Failed to move to home position: {str(e)}")
+            
+        return response
+
+    def exit_teach_mode_callback(self, request, response):
+        try:
+            arm_status = self.agx_arm.get_arm_status()
+            if arm_status is not None and arm_status.msg.ctrl_mode == 0x02:
+                self.agx_arm.move_js([0] * self.arm_joint_count)
+                time.sleep(2) 
+                self.agx_arm.electronic_emergency_stop()
+                time.sleep(0.3)
+                self.agx_arm.reset()
+                self.get_logger().info("Exited teach mode successfully")
+            else:
+                self.get_logger().info("Arm is not in teach mode, no need to exit")
         except Exception as e:
             self.get_logger().error(f"Failed to move to home position: {str(e)}")
             

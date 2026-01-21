@@ -38,7 +38,7 @@ def generate_launch_description():
         'arm_type',
         default_value='piper',
         description='Type of robotic arm.',
-        choices=['piper', 'nero']
+        choices=['piper', 'nero', 'piper_x', 'piper_h', 'piper_l']
     )
 
     speed_percent_arg = DeclareLaunchArgument(
@@ -56,7 +56,7 @@ def generate_launch_description():
     # node
     agx_arm_node = Node(
         package='agx_arm_ctrl',
-        executable='agx_arm_single_ctrl',
+        executable='agx_arm_ctrl_single',
         name='agx_arm_ctrl_single_node',
         output='screen',
         ros_arguments=['--log-level', LaunchConfiguration('log_level')],
