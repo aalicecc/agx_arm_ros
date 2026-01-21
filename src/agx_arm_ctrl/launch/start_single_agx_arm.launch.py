@@ -1,7 +1,7 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration,PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 import os
 from ament_index_python.packages import get_package_share_directory
 
@@ -30,7 +30,7 @@ def generate_launch_description():
     
     auto_enable_arg = DeclareLaunchArgument(
         'auto_enable',
-        default_value= 'True',
+        default_value='True',
         description='Automatically enable the AGX Arm node.'
     )
 
@@ -53,6 +53,20 @@ def generate_launch_description():
         description='Timeout in seconds for arm enable/disable operations.'
     )
 
+    installation_pos_arg = DeclareLaunchArgument(
+        'installation_pos',
+        default_value='Horizontal',
+        description='Installation position of the arm.',
+        choices=['Horizontal', 'Left', 'Right']
+    )
+
+    effector_type_arg = DeclareLaunchArgument(
+        'effector_type',
+        default_value='none',
+        description='End effector type.',
+        choices=['none', 'agx_gripper', 'revo2']
+    )
+
     # node
     agx_arm_node = Node(
         package='agx_arm_ctrl',
@@ -61,30 +75,41 @@ def generate_launch_description():
         output='screen',
         ros_arguments=['--log-level', LaunchConfiguration('log_level')],
         parameters=[{
-            'can_port': LaunchConfiguration('can_port'),    
+            'can_port': LaunchConfiguration('can_port'),
             'pub_rate': LaunchConfiguration('pub_rate'),
             'auto_enable': LaunchConfiguration('auto_enable'),
             'arm_type': LaunchConfiguration('arm_type'),
             'speed_percent': LaunchConfiguration('speed_percent'),
             'enable_timeout': LaunchConfiguration('enable_timeout'),
+            'installation_pos': LaunchConfiguration('installation_pos'),
+            'effector_type': LaunchConfiguration('effector_type'),
         }],
         remappings=[
             # feedback topics
             ('/feedback/joint_states', '/feedback/joint_states'),
             ('/feedback/end_pose', '/feedback/end_pose'),
+            ('/feedback/arm_status', '/feedback/arm_status'),
+            ('/feedback/gripper_status', '/feedback/gripper_status'),
+            ('/feedback/hand_status', '/feedback/hand_status'),
 
             # control topics
-            ('/control/joint_states', '/control/joint_states'),
-            ('/control/end_pose', '/control/end_pose'),
+            ('/control/move_j', '/control/move_j'),
+            ('/control/move_p', '/control/move_p'),
+            ('/control/move_l', '/control/move_l'),
+            ('/control/move_c', '/control/move_c'),
+            ('/control/move_js', '/control/move_js'),
+            ('/control/gripper', '/control/gripper'),
+            ('/control/hand', '/control/hand'),
 
             # services
             ('enable_agx_arm', 'enable_agx_arm'),
-            ('move_home', 'move_home')
+            ('move_home', 'move_home'),
+            ('exit_teach_mode', 'exit_teach_mode'),
         ]
     )
 
     return LaunchDescription([
-        # arg
+        # arguments
         log_level_arg,
         can_port_arg,
         pub_rate_arg,
@@ -92,6 +117,8 @@ def generate_launch_description():
         arm_type_arg,
         speed_percent_arg,
         enable_timeout_arg,
+        installation_pos_arg,
+        effector_type_arg,
         # node
         agx_arm_node
     ])
