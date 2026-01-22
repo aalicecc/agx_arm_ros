@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
 # -*-coding:utf8-*-
-"""
-AgxGripper 末端执行器封装模块
-
-本模块封装了AgxGripper夹爪的控制和状态读取功能，
-供agx_arm_ctrl_single_node.py调用。
-
-功能包括：
-- 夹爪初始化
-- 状态读取（宽度、夹持力、驱动状态等）
-- 夹爪控制（移动、禁用、标定）
-- 示教器参数配置
-"""
-
 from typing import Optional, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
 
@@ -22,9 +9,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class GripperStatus:
-    """夹爪状态数据类"""
-    width: float = 0.0          # 当前夹爪开口宽度，单位：m
-    force: float = 0.0          # 当前夹持力，单位：N
+    width: float = 0.0                  # 当前夹爪开口宽度，单位：m
+    force: float = 0.0                  # 当前夹持力，单位：N
     voltage_too_low: bool = False       # 电压过低
     motor_overheating: bool = False     # 电机过温
     driver_overcurrent: bool = False    # 驱动过流
@@ -33,13 +19,12 @@ class GripperStatus:
     driver_error_status: bool = False   # 驱动错误状态
     driver_enable_status: bool = False  # 驱动使能状态
     homing_status: bool = False         # 回零/零位状态
-    hz: float = 0.0             # 消息接收频率
-    timestamp: float = 0.0      # 时间戳
+    hz: float = 0.0                     # 消息接收频率
+    timestamp: float = 0.0              # 时间戳
 
 
 @dataclass
 class GripperCtrlStatus:
-    """夹爪控制状态数据类"""
     width: float = 0.0          # 当前夹爪开口宽度，单位：m
     force: float = 0.0          # 当前夹持力，单位：N
     status_code: int = 0        # 状态码
@@ -72,15 +57,15 @@ class AgxGripperWrapper:
     """
     
     # 夹爪控制参数范围
-    WIDTH_MIN: float = 0.0      # 最小宽度，单位：m
-    WIDTH_MAX: float = 0.1      # 最大宽度，单位：m
-    FORCE_MIN: float = 0.0      # 最小力，单位：N
-    FORCE_MAX: float = 3.0      # 最大力，单位：N
+    WIDTH_MIN: float = 0.0      # minimum width, unit: m
+    WIDTH_MAX: float = 0.1      # maximum width, unit: m
+    FORCE_MIN: float = 0.0      # minimum force, unit: N
+    FORCE_MAX: float = 3.0      # maximum force, unit: N
     
     def __init__(self, agx_arm):
         self._agx_arm = agx_arm
         self._effector: Optional["EffectorDriver"] = None
-        self._initialized: bool = False
+        self._initialized = False
     
     def initialize(self) -> bool:
         if self._initialized:
@@ -93,16 +78,8 @@ class AgxGripperWrapper:
             self._initialized = True
             return True
         except Exception as e:
-            print(f"[AgxGripperWrapper] 初始化失败: {e}")
+            print(f"[AgxGripperWrapper] initialize failed: {e}")
             return False
-    
-    @property
-    def is_initialized(self) -> bool:
-        return self._initialized
-    
-    @property
-    def effector(self) -> Optional["EffectorDriver"]:
-        return self._effector
     
     def is_ok(self) -> bool:
         if not self._initialized or self._effector is None:
@@ -171,20 +148,20 @@ class AgxGripperWrapper:
         if param is None:
             return None
         
-        teaching_param = GripperTeachingParam(
+        teaching_pendant_param = GripperTeachingParam(
             teaching_range_per=param.msg.teaching_range_per,
             max_range_config=param.msg.max_range_config,
             teaching_friction=param.msg.teaching_friction,
             hz=param.hz,
             timestamp=param.timestamp
         )
-        return teaching_param
+        return teaching_pendant_param
     
     def move(self, width: float = 0.0, force: float = 1.0) -> bool:
         if not self._initialized or self._effector is None:
             return False
         
-        # 参数范围校验
+        # 参数范围检查
         if not (self.WIDTH_MIN <= width <= self.WIDTH_MAX):
             raise ValueError(
                 f"width必须在[{self.WIDTH_MIN}, {self.WIDTH_MAX}]范围内，当前值：{width}"
@@ -236,29 +213,23 @@ class AgxGripperWrapper:
             timeout=timeout
         )
     
-    def get_status_dict(self) -> Dict[str, Any]:
-        """
-        获取夹爪状态字典（便于ROS消息发布）
+    # def get_status_dict(self) -> Dict[str, Any]:
+    #     status = self.get_status()
+    #     if status is None:
+    #         return {}
         
-        Returns:
-            Dict: 包含夹爪状态的字典
-        """
-        status = self.get_status()
-        if status is None:
-            return {}
-        
-        return {
-            'width': status.width,
-            'force': status.force,
-            'driver_enable_status': status.driver_enable_status,
-            'homing_status': status.homing_status,
-            'voltage_too_low': status.voltage_too_low,
-            'motor_overheating': status.motor_overheating,
-            'driver_overcurrent': status.driver_overcurrent,
-            'driver_overheating': status.driver_overheating,
-            'sensor_status': status.sensor_status,
-            'driver_error_status': status.driver_error_status,
-            'hz': status.hz,
-            'timestamp': status.timestamp
-        }
+    #     return {
+    #         'width': status.width,
+    #         'force': status.force,
+    #         'driver_enable_status': status.driver_enable_status,
+    #         'homing_status': status.homing_status,
+    #         'voltage_too_low': status.voltage_too_low,
+    #         'motor_overheating': status.motor_overheating,
+    #         'driver_overcurrent': status.driver_overcurrent,
+    #         'driver_overheating': status.driver_overheating,
+    #         'sensor_status': status.sensor_status,
+    #         'driver_error_status': status.driver_error_status,
+    #         'hz': status.hz,
+    #         'timestamp': status.timestamp
+    #     }
 

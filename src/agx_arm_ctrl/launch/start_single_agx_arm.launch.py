@@ -55,9 +55,9 @@ def generate_launch_description():
 
     installation_pos_arg = DeclareLaunchArgument(
         'installation_pos',
-        default_value='Horizontal',
+        default_value='horizontal',
         description='Installation position of the arm.',
-        choices=['Horizontal', 'Left', 'Right']
+        choices=['horizontal', 'left', 'right']
     )
 
     effector_type_arg = DeclareLaunchArgument(
@@ -89,6 +89,7 @@ def generate_launch_description():
             ('/feedback/joint_states', '/feedback/joint_states'),
             ('/feedback/end_pose', '/feedback/end_pose'),
             ('/feedback/arm_status', '/feedback/arm_status'),
+            ('/feedback/arm_ctrl_states', '/feedback/arm_ctrl_states'),
             ('/feedback/gripper_status', '/feedback/gripper_status'),
             ('/feedback/hand_status', '/feedback/hand_status'),
 
@@ -97,14 +98,16 @@ def generate_launch_description():
             ('/control/move_p', '/control/move_p'),
             ('/control/move_l', '/control/move_l'),
             ('/control/move_c', '/control/move_c'),
+            ('/control/move_mit', '/control/move_mit'),
             ('/control/move_js', '/control/move_js'),
             ('/control/gripper', '/control/gripper'),
             ('/control/hand', '/control/hand'),
+            ('/control/hand_position_time', '/control/hand_position_time'),
 
             # services
-            ('enable_agx_arm', 'enable_agx_arm'),
-            ('move_home', 'move_home'),
-            ('exit_teach_mode', 'exit_teach_mode'),
+            ('/enable_agx_arm', '/enable_agx_arm'),
+            ('/move_home', '/move_home'),
+            ('/exit_teach_mode', '/exit_teach_mode'),
         ]
     )
 

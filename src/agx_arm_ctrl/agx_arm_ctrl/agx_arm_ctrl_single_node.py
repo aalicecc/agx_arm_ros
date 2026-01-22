@@ -6,6 +6,7 @@ import math
 import threading
 import numpy as np
 from typing import Optional
+from enum import IntEnum
 from pyAgxArm import create_agx_arm_config, AgxArmFactory
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
@@ -14,9 +15,14 @@ from std_srvs.srv import SetBool, Empty
 from geometry_msgs.msg import Pose, PoseStamped
 from scipy.spatial.transform import Rotation as R
 
-from agx_arm_msgs.msg import AgxArmStatus, GripperStatus, GripperCmd, HandStatus, HandCmd, TriplePose
+from agx_arm_msgs.msg import (
+    AgxArmStatus, GripperStatus, GripperCmd, 
+    HandStatus, HandCmd, HandPositionTimeCmd, TriplePose
+)
 from agx_arm_ctrl.effector import AgxGripperWrapper, Revo2Wrapper
 
+class ControlMode(IntEnum):
+    TEACH = 0x02
 
 class AgxArmRosNode(Node):
 
@@ -32,7 +38,7 @@ class AgxArmRosNode(Node):
         self._init_agx_arm()
 
         ### effector
-        # self._init_effector()
+        self._init_effector()
     
         ### variables
         self.enable_flag = False
@@ -49,6 +55,8 @@ class AgxArmRosNode(Node):
         ### publisher thread
         self.publisher_thread = threading.Thread(target=self._publish_thread)
         self.publisher_thread.start()
+
+    ### initialization methods
 
     def _declare_parameters(self):
         self.declare_parameter("can_port", "can0")
@@ -87,7 +95,7 @@ class AgxArmRosNode(Node):
         self.agx_arm = AgxArmFactory.create_arm(config)
         self.agx_arm.connect()
         self.agx_arm.set_speed_percent(self.speed_percent)
-        self._set_installation_pos()
+        self.agx_arm.set_installation_pos(self.installation_pos)
         self.arm_joint_names = list(config["joint_limit"].keys())
         self.arm_joint_count = len(self.arm_joint_names)
         self.is_piper = "piper" in self.arm_type
@@ -111,14 +119,6 @@ class AgxArmRosNode(Node):
                 self.get_logger().error("Failed to initialize Revo2 hand")
                 self.hand = None
 
-    def _set_installation_pos(self):
-        pos_value = getattr(self.agx_arm.INSTALLATION_POS, self.installation_pos, None)
-        # TODO :
-        print("pos_value", pos_value)
-        if pos_value is not None:
-            self.agx_arm.set_installation_pos(pos_value)
-            self.get_logger().info(f"Installation position set to: {self.installation_pos}")
-
     def _setup_publishers(self):
         self.joint_states_pub = self.create_publisher(
             JointState, "/feedback/joint_states", 1
@@ -129,15 +129,17 @@ class AgxArmRosNode(Node):
         self.arm_status_pub = self.create_publisher(
             AgxArmStatus, "/feedback/arm_status", 1
         )
-        # TODO: 
-        # if self.gripper is not None:
-        #     self.gripper_status_pub = self.create_publisher(
-        #         GripperStatus, "/feedback/gripper_status", 1
-        #     )
-        # if self.hand is not None:
-        #     self.hand_status_pub = self.create_publisher(
-        #         HandStatus, "/feedback/hand_status", 1
-        #     )
+        self.arm_ctrl_states_pub = self.create_publisher(
+            JointState, "/feedback/arm_ctrl_states", 1
+        )
+        if self.gripper is not None:
+            self.gripper_status_pub = self.create_publisher(
+                GripperStatus, "/feedback/gripper_status", 1
+            )
+        if self.hand is not None:
+            self.hand_status_pub = self.create_publisher(
+                HandStatus, "/feedback/hand_status", 1
+            )
 
     def _setup_subscribers(self):
         self.create_subscription(
@@ -154,26 +156,30 @@ class AgxArmRosNode(Node):
                 TriplePose, "/control/move_c", self._move_c_callback, 1
             )
             self.create_subscription(
-                PoseStamped, "/control/move_mit", self._move_mit_callback, 1
+                JointState, "/control/move_mit", self._move_mit_callback, 1
             )
             self.create_subscription(
                 JointState, "/control/move_js", self._move_js_callback, 1
             )
-
-        # TODO:
-        # if self.gripper is not None:
-        #     self.create_subscription(
-        #         GripperCmd, "/control/gripper", self._gripper_cmd_callback, 1
-        #     )
-        # if self.hand is not None:
-        #     self.create_subscription(
-        #         HandCmd, "/control/hand", self._hand_cmd_callback, 1
-        #     )
+        if self.gripper is not None:
+            self.create_subscription(
+                GripperCmd, "/control/gripper", self._gripper_cmd_callback, 1
+            )
+        if self.hand is not None:
+            self.create_subscription(
+                HandCmd, "/control/hand", self._hand_cmd_callback, 1
+            )
+            self.create_subscription(
+                HandPositionTimeCmd, "/control/hand_position_time", 
+                self._hand_position_time_cmd_callback, 1
+            )
 
     def _setup_services(self):
-        self.create_service(SetBool, "enable_agx_arm", self._enable_callback)
-        self.create_service(Empty, "move_home", self._move_home_callback)
-        self.create_service(Empty, "exit_teach_mode", self._exit_teach_mode_callback)
+        self.create_service(SetBool, "/enable_agx_arm", self._enable_callback)
+        self.create_service(Empty, "/move_home", self._move_home_callback)
+        self.create_service(Empty, "/exit_teach_mode", self._exit_teach_mode_callback)
+
+    ### utility methods
 
     def _float_to_ros_time(self, timestamp: float) -> Time:
         """将float时间戳转换为ROS Time消息"""
@@ -202,7 +208,7 @@ class AgxArmRosNode(Node):
             self.get_logger().warn("Agx_arm is not enabled, cannot control")
             return False
         arm_status = self.agx_arm.get_arm_status()
-        if arm_status is not None and arm_status.msg.ctrl_mode == 0x02:
+        if arm_status is not None and arm_status.msg.ctrl_mode == ControlMode.TEACH:
             self.get_logger().warn("Agx_arm is in teach mode, cannot control")
             return False
         return True
@@ -247,6 +253,8 @@ class AgxArmRosNode(Node):
         
         return True
 
+    ### publisher thread
+
     def _publish_thread(self):
         rate = self.create_rate(self.pub_rate)
 
@@ -260,8 +268,11 @@ class AgxArmRosNode(Node):
                 self._publish_joint_states()
                 self._publish_end_pose()
                 self._publish_arm_status()
+                self._publish_arm_ctrl_states()
                 self._publish_effector_status()
             rate.sleep()
+    
+    ### publish methods
 
     def _publish_joint_states(self):
         joint_states = self.agx_arm.get_joint_states()
@@ -293,7 +304,6 @@ class AgxArmRosNode(Node):
         self.end_pose_pub.publish(msg)
 
     def _publish_arm_status(self):
-        # TODO: 
         arm_status = self.agx_arm.get_arm_status()
         if arm_status is None:
             return
@@ -305,68 +315,77 @@ class AgxArmRosNode(Node):
         msg.teach_status = arm_status.msg.teach_status
         msg.motion_status = arm_status.msg.motion_status
         msg.trajectory_num = arm_status.msg.trajectory_num
-
-        # 错误状态
         err = arm_status.msg.err_status
-        msg.joint_angle_limit = [
-            err.joint_1_angle_limit, err.joint_2_angle_limit,
-            err.joint_3_angle_limit, err.joint_4_angle_limit,
-            err.joint_5_angle_limit, err.joint_6_angle_limit
-        ]
-        msg.communication_status_joint = [
-            err.communication_status_joint_1, err.communication_status_joint_2,
-            err.communication_status_joint_3, err.communication_status_joint_4,
-            err.communication_status_joint_5, err.communication_status_joint_6
-        ]
+        for i in range(self.arm_joint_count):
+            angle_limit = getattr(err, f"joint_{i+1}_angle_limit")
+            comm_status = getattr(err, f"communication_status_joint_{i+1}")
+
+            msg.joint_angle_limit.append(angle_limit)
+            msg.communication_status_joint.append(comm_status)
 
         self.arm_status_pub.publish(msg)
 
+    def _publish_arm_ctrl_states(self):
+        arm_ctrl_states = self.agx_arm.get_joint_ctrl_states()
+        if arm_ctrl_states is None:
+            return
+
+        msg = JointState()
+        msg.header.stamp = self._float_to_ros_time(arm_ctrl_states.timestamp)
+        msg.name = self.arm_joint_names
+        msg.position = arm_ctrl_states.msg
+        msg.velocity = [0.0] * self.arm_joint_count
+        msg.effort = [0.0] * self.arm_joint_count
+        self.arm_ctrl_states_pub.publish(msg)
+
+    def _publish_gripper_status(self):
+        status = self.gripper.get_status()
+        if status is not None:
+            msg = GripperStatus()
+            msg.header.stamp = self._float_to_ros_time(status.timestamp)
+            msg.width = status.width
+            msg.force = status.force
+            msg.voltage_too_low = status.voltage_too_low
+            msg.motor_overheating = status.motor_overheating
+            msg.driver_overcurrent = status.driver_overcurrent
+            msg.driver_overheating = status.driver_overheating
+            msg.sensor_status = status.sensor_status
+            msg.driver_error_status = status.driver_error_status
+            msg.driver_enable_status = status.driver_enable_status
+            msg.homing_status = status.homing_status
+            self.gripper_status_pub.publish(msg)
+
+    def _publish_hand_status(self):
+        hand_status = self.hand.get_status()
+        finger_pos = self.hand.get_finger_position()
+        if hand_status is not None:
+            msg = HandStatus()
+            msg.header.stamp = self._float_to_ros_time(hand_status.timestamp)
+            msg.left_or_right = hand_status.left_or_right
+            # 电机状态
+            msg.thumb_tip_status = hand_status.thumb_tip
+            msg.thumb_base_status = hand_status.thumb_base
+            msg.index_finger_status = hand_status.index_finger
+            msg.middle_finger_status = hand_status.middle_finger
+            msg.ring_finger_status = hand_status.ring_finger
+            msg.pinky_finger_status = hand_status.pinky_finger
+            # 位置
+            if finger_pos is not None:
+                msg.thumb_tip_pos = finger_pos.thumb_tip
+                msg.thumb_base_pos = finger_pos.thumb_base
+                msg.index_finger_pos = finger_pos.index_finger
+                msg.middle_finger_pos = finger_pos.middle_finger
+                msg.ring_finger_pos = finger_pos.ring_finger
+                msg.pinky_finger_pos = finger_pos.pinky_finger
+            self.hand_status_pub.publish(msg)
+
     def _publish_effector_status(self):
-        # TODO:
-        # 发布夹爪状态
         if self.gripper is not None and self.gripper.is_ok():
-            status = self.gripper.get_status()
-            if status is not None:
-                msg = GripperStatus()
-                msg.header.stamp = self._float_to_ros_time(status.timestamp)
-                msg.width = status.width
-                msg.force = status.force
-                msg.voltage_too_low = status.voltage_too_low
-                msg.motor_overheating = status.motor_overheating
-                msg.driver_overcurrent = status.driver_overcurrent
-                msg.driver_overheating = status.driver_overheating
-                msg.sensor_status = status.sensor_status
-                msg.driver_error_status = status.driver_error_status
-                msg.driver_enable_status = status.driver_enable_status
-                msg.homing_status = status.homing_status
-                self.gripper_status_pub.publish(msg)
-
-        # 发布灵巧手状态
+            self._publish_gripper_status()
         if self.hand is not None and self.hand.is_ok():
-            hand_status = self.hand.get_hand_status()
-            finger_pos = self.hand.get_finger_position()
-            if hand_status is not None:
-                msg = HandStatus()
-                msg.header.stamp = self._float_to_ros_time(hand_status.timestamp)
-                msg.left_or_right = hand_status.left_or_right
-                # 电机状态
-                msg.thumb_tip_status = hand_status.thumb_tip
-                msg.thumb_base_status = hand_status.thumb_base
-                msg.index_finger_status = hand_status.index_finger
-                msg.middle_finger_status = hand_status.middle_finger
-                msg.ring_finger_status = hand_status.ring_finger
-                msg.pinky_finger_status = hand_status.pinky_finger
-                # 位置
-                if finger_pos is not None:
-                    msg.thumb_tip_pos = finger_pos.thumb_tip
-                    msg.thumb_base_pos = finger_pos.thumb_base
-                    msg.index_finger_pos = finger_pos.index_finger
-                    msg.middle_finger_pos = finger_pos.middle_finger
-                    msg.ring_finger_pos = finger_pos.ring_finger
-                    msg.pinky_finger_pos = finger_pos.pinky_finger
-                self.hand_status_pub.publish(msg)
+            self._publish_hand_status()
 
-    # ==================== 机械臂控制回调 ====================
+    ### arm control callbacks
 
     def _move_j_callback(self, msg: JointState):
         if not self._check_can_control():
@@ -375,7 +394,7 @@ class AgxArmRosNode(Node):
         joint_pos = {}
         for idx, joint_name in enumerate(msg.name):
             joint_pos[joint_name] = self._safe_get_value(msg.position, idx)
-        joints = [joint_pos.get(f'joint{i}', 0) for i in range(1, self.arm_joint_count + 1)]
+        joints = [joint_pos.get(f'j{i}', 0) for i in range(1, self.arm_joint_count + 1)]
         self.agx_arm.move_j(joints)
 
     def _move_p_callback(self, msg: PoseStamped):
@@ -402,9 +421,9 @@ class AgxArmRosNode(Node):
         if not self._check_can_control():
             return
 
-        pose_start = self._create_pose_cmd(msg.start_pose)
-        pose_mid = self._create_pose_cmd(msg.mid_pose)
-        pose_end = self._create_pose_cmd(msg.end_pose)
+        pose_start = self._create_pose_cmd(msg.start_pose.pose)
+        pose_mid = self._create_pose_cmd(msg.mid_pose.pose)
+        pose_end = self._create_pose_cmd(msg.end_pose.pose)
         self.agx_arm.move_c(pose_start, pose_mid, pose_end)
 
     def _move_js_callback(self, msg: JointState):
@@ -417,10 +436,10 @@ class AgxArmRosNode(Node):
         joint_pos = {}
         for idx, joint_name in enumerate(msg.name):
             joint_pos[joint_name] = self._safe_get_value(msg.position, idx)
-        joints = [joint_pos.get(f'joint{i}', 0) for i in range(1, self.arm_joint_count + 1)]
+        joints = [joint_pos.get(f'j{i}', 0) for i in range(1, self.arm_joint_count + 1)]
         self.agx_arm.move_js(joints)
 
-    def _move_mit_callback(self, msg: PoseStamped):
+    def _move_mit_callback(self, msg: JointState):
         if not self.is_piper:
             self.get_logger().warn("move_mit just piper series supported")
             return
@@ -430,17 +449,12 @@ class AgxArmRosNode(Node):
         joint_pos = {}          
         for idx, joint_name in enumerate(msg.name):
             joint_pos[joint_name] = self._safe_get_value(msg.position, idx)
-        joints = [joint_pos.get(f'joint{i}', 0) for i in range(1, self.arm_joint_count + 1)]
         for i in range(1, self.arm_joint_count + 1):
-            # TODO:注意单位
-            joint_rad = np.deg2rad(joints[i-1] / 1000)
-            self.agx_arm.move_mit(joint_index=i, p_des=joint_rad, v_des=0, kp=10.0, kd=0.8, t_ff=0)
+            self.agx_arm.move_mit(joint_index=i, p_des=joint_pos.get(f'j{i}', 0), v_des=0, kp=10.0, kd=0.8, t_ff=0)
 
-
-    # ==================== 末端执行器控制回调 ====================
+    ### effector control callbacks
 
     def _gripper_cmd_callback(self, msg: GripperCmd):
-        """夹爪控制回调"""
         if self.gripper is None:
             self.get_logger().warn("夹爪未初始化")
             return
@@ -450,45 +464,63 @@ class AgxArmRosNode(Node):
         except ValueError as e:
             self.get_logger().error(f"夹爪控制参数错误: {e}")
 
-    def _hand_cmd_callback(self, msg: HandCmd):
-        """灵巧手控制回调"""
+    def _hand_position_time_cmd_callback(self, msg: HandPositionTimeCmd):
         if self.hand is None:
             self.get_logger().warn("灵巧手未初始化")
             return
-
-        mode = msg.mode.lower()
+        
         try:
-            if mode == "position":
-                self.hand.position_ctrl(
-                    thumb_tip=msg.thumb_tip,
-                    thumb_base=msg.thumb_base,
-                    index_finger=msg.index_finger,
-                    middle_finger=msg.middle_finger,
-                    ring_finger=msg.ring_finger,
-                    pinky_finger=msg.pinky_finger,
-                )
-            elif mode == "speed":
-                self.hand.speed_ctrl(
-                    thumb_tip=msg.thumb_tip,
-                    thumb_base=msg.thumb_base,
-                    index_finger=msg.index_finger,
-                    middle_finger=msg.middle_finger,
-                    ring_finger=msg.ring_finger,
-                    pinky_finger=msg.pinky_finger,
-                )
-            elif mode == "current":
-                self.hand.current_ctrl(
-                    thumb_tip=msg.thumb_tip,
-                    thumb_base=msg.thumb_base,
-                    index_finger=msg.index_finger,
-                    middle_finger=msg.middle_finger,
-                    ring_finger=msg.ring_finger,
-                    pinky_finger=msg.pinky_finger,
-                )
-            else:
-                self.get_logger().warn(f"未知的灵巧手控制模式: {mode}")
+            self.hand.position_time_ctrl(
+                mode='pos',
+                thumb_tip=msg.thumb_tip_pos,
+                thumb_base=msg.thumb_base_pos,
+                index_finger=msg.index_finger_pos,
+                middle_finger=msg.middle_finger_pos,
+                ring_finger=msg.ring_finger_pos,
+                pinky_finger=msg.pinky_finger_pos,
+            )
+            time.sleep(0.02)
+            self.hand.position_time_ctrl(
+                mode='time',
+                thumb_tip=msg.thumb_tip_time,
+                thumb_base=msg.thumb_base_time,
+                index_finger=msg.index_finger_time,
+                middle_finger=msg.middle_finger_time,
+                ring_finger=msg.ring_finger_time,
+                pinky_finger=msg.pinky_finger_time,
+            )
+        except ValueError as e:
+            self.get_logger().error(f"灵巧手位置/时间控制参数错误: {e}")
+
+    def _hand_cmd_callback(self, msg: HandCmd):
+        if self.hand is None:
+            self.get_logger().warn("灵巧手未初始化")
+            return
+        
+        mode_to_method = {
+            "position": self.hand.position_ctrl,
+            "speed": self.hand.speed_ctrl,
+            "current": self.hand.current_ctrl,
+        }
+
+        mode = msg.mode.lower()        
+        if mode not in mode_to_method:
+            self.get_logger().warn(f"未知的灵巧手控制模式: {mode}")
+            return
+
+        try:
+            mode_to_method[mode](
+                thumb_tip=msg.thumb_tip,
+                thumb_base=msg.thumb_base,
+                index_finger=msg.index_finger,
+                middle_finger=msg.middle_finger,
+                ring_finger=msg.ring_finger,
+                pinky_finger=msg.pinky_finger,
+            )
         except ValueError as e:
             self.get_logger().error(f"灵巧手控制参数错误: {e}")
+
+    ### service callbacks
 
     def _enable_callback(self, request, response):
         try:
@@ -513,7 +545,7 @@ class AgxArmRosNode(Node):
                 self.get_logger().warn("Agx_arm is not enabled, cannot move to home position")
             else:
                 arm_status = self.agx_arm.get_arm_status()
-                if arm_status is not None and arm_status.msg.ctrl_mode == 0x02:
+                if arm_status is not None and arm_status.msg.ctrl_mode == ControlMode.TEACH:
                     self.get_logger().warn("Agx_arm is in teach mode, cannot move to home position")
                 else:
                     self.agx_arm.move_j([0] * self.arm_joint_count)
@@ -525,7 +557,7 @@ class AgxArmRosNode(Node):
     def _exit_teach_mode_callback(self, request, response):
         try:
             arm_status = self.agx_arm.get_arm_status()
-            if arm_status is not None and arm_status.msg.ctrl_mode == 0x02:
+            if arm_status is not None and arm_status.msg.ctrl_mode == ControlMode.TEACH:
                 if self.is_piper:
                     self.agx_arm.move_js([0] * self.arm_joint_count)
                     time.sleep(2)

@@ -11,6 +11,7 @@ find_package(rclpy REQUIRED)
 
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/AgxArmStatus.msg"
@@ -18,8 +19,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/GripperCmd.msg"
   "msg/HandStatus.msg"
   "msg/HandCmd.msg"
+  "msg/HandPositionTimeCmd.msg"
   "msg/TriplePose.msg"
-  DEPENDENCIES std_msgs
+  DEPENDENCIES std_msgs geometry_msgs
 )
 
 if(BUILD_TESTING)
