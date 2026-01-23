@@ -36,7 +36,7 @@ def generate_launch_description():
 
     arm_type_arg = DeclareLaunchArgument(
         'arm_type',
-        default_value='piper',
+        default_value='piper_h',
         description='Type of robotic arm.',
         choices=['piper', 'nero', 'piper_x', 'piper_h', 'piper_l']
     )

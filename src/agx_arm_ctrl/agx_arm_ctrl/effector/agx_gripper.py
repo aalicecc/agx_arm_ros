@@ -9,54 +9,42 @@ if TYPE_CHECKING:
 
 @dataclass
 class GripperStatus:
-    width: float = 0.0                  # 当前夹爪开口宽度，单位：m
-    force: float = 0.0                  # 当前夹持力，单位：N
-    voltage_too_low: bool = False       # 电压过低
-    motor_overheating: bool = False     # 电机过温
-    driver_overcurrent: bool = False    # 驱动过流
-    driver_overheating: bool = False    # 驱动过温
-    sensor_status: bool = False         # 传感器状态
-    driver_error_status: bool = False   # 驱动错误状态
-    driver_enable_status: bool = False  # 驱动使能状态
-    homing_status: bool = False         # 回零/零位状态
-    hz: float = 0.0                     # 消息接收频率
-    timestamp: float = 0.0              # 时间戳
+    width: float = 0.0                  # Current gripper opening width, unit: m
+    force: float = 0.0                  # Current gripping force, unit: N
+    voltage_too_low: bool = False       # Voltage too low
+    motor_overheating: bool = False     # Motor overheating
+    driver_overcurrent: bool = False    # Driver overcurrent
+    driver_overheating: bool = False    # Driver overheating
+    sensor_status: bool = False         # Sensor status
+    driver_error_status: bool = False   # Driver error status
+    driver_enable_status: bool = False  # Driver enable status
+    homing_status: bool = False         # Homing/zero position status
+    hz: float = 0.0                     # Message receiving frequency
+    timestamp: float = 0.0              # Timestamp
 
 
 @dataclass
 class GripperCtrlStatus:
-    width: float = 0.0          # 当前夹爪开口宽度，单位：m
-    force: float = 0.0          # 当前夹持力，单位：N
-    status_code: int = 0        # 状态码
-    set_zero: int = 0           # 回零/置零字段
-    hz: float = 0.0             # 消息接收频率
-    timestamp: float = 0.0      # 时间戳
+    width: float = 0.0          # Current gripper opening width, unit: m
+    force: float = 0.0          # Current gripping force, unit: N
+    status_code: int = 0        # Status code
+    set_zero: int = 0           # Homing/zeroing field
+    hz: float = 0.0             # Message receiving frequency
+    timestamp: float = 0.0      # Timestamp
 
 
 @dataclass
 class GripperTeachingParam:
-    """夹爪示教器参数数据类"""
-    teaching_range_per: int = 100   # 示教范围（百分比），范围：[100, 200]
-    max_range_config: float = 0.0   # 最大行程配置，单位：m，仅支持：0/0.07/0.1
-    teaching_friction: int = 1      # 示教摩擦，范围：1..10
+    teaching_range_per: int = 100   # Teaching range (percentage), range: [100, 200]
+    max_range_config: float = 0.0   # Maximum stroke configuration, unit: m, only supports: 0/0.07/0.1
+    teaching_friction: int = 1      # Teaching friction, range: 1..10
     hz: float = 0.0
     timestamp: float = 0.0
 
 
 class AgxGripperWrapper:
-    """
-    AgxGripper夹爪封装类
     
-    该类封装了pyAgxArm库中AgxGripper的所有功能，
-    提供更简洁的接口供ROS节点调用。
-    
-    使用示例：
-        gripper = AgxGripperWrapper(agx_arm)
-        gripper.initialize()
-        gripper.move(width=0.05, force=1.0)
-    """
-    
-    # 夹爪控制参数范围
+    # Gripper control parameter ranges
     WIDTH_MIN: float = 0.0      # minimum width, unit: m
     WIDTH_MAX: float = 0.1      # maximum width, unit: m
     FORCE_MIN: float = 0.0      # minimum force, unit: N
@@ -115,7 +103,7 @@ class AgxGripperWrapper:
         )
         return status
     
-    def get_ctrl_status(self) -> Optional[GripperCtrlStatus]:
+    def get_ctrl_states(self) -> Optional[GripperCtrlStatus]:
         if not self._initialized or self._effector is None:
             return None
         
@@ -161,21 +149,21 @@ class AgxGripperWrapper:
         if not self._initialized or self._effector is None:
             return False
         
-        # 参数范围检查
+        # Parameter range check
         if not (self.WIDTH_MIN <= width <= self.WIDTH_MAX):
             raise ValueError(
-                f"width必须在[{self.WIDTH_MIN}, {self.WIDTH_MAX}]范围内，当前值：{width}"
+                f"width must be in range [{self.WIDTH_MIN}, {self.WIDTH_MAX}], current value: {width}"
             )
         if not (self.FORCE_MIN <= force <= self.FORCE_MAX):
             raise ValueError(
-                f"force必须在[{self.FORCE_MIN}, {self.FORCE_MAX}]范围内，当前值：{force}"
+                f"force must be in range [{self.FORCE_MIN}, {self.FORCE_MAX}], current value: {force}"
             )
         
         try:
             self._effector.move_gripper(width=width, force=force)
             return True
         except Exception as e:
-            print(f"[AgxGripperWrapper] 控制夹爪失败: {e}")
+            print(f"[AgxGripperWrapper] Control gripper failed: {e}")
             return False
     
     def open(self, width: float = 0.1, force: float = 1.0) -> bool:
@@ -212,24 +200,3 @@ class AgxGripperWrapper:
             teaching_friction=teaching_friction,
             timeout=timeout
         )
-    
-    # def get_status_dict(self) -> Dict[str, Any]:
-    #     status = self.get_status()
-    #     if status is None:
-    #         return {}
-        
-    #     return {
-    #         'width': status.width,
-    #         'force': status.force,
-    #         'driver_enable_status': status.driver_enable_status,
-    #         'homing_status': status.homing_status,
-    #         'voltage_too_low': status.voltage_too_low,
-    #         'motor_overheating': status.motor_overheating,
-    #         'driver_overcurrent': status.driver_overcurrent,
-    #         'driver_overheating': status.driver_overheating,
-    #         'sensor_status': status.sensor_status,
-    #         'driver_error_status': status.driver_error_status,
-    #         'hz': status.hz,
-    #         'timestamp': status.timestamp
-    #     }
-

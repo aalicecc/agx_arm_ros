@@ -65,7 +65,7 @@ class AgxArmRosNode(Node):
         self.declare_parameter("arm_type", "piper")
         self.declare_parameter("speed_percent", 100)
         self.declare_parameter("enable_timeout", 5.0)
-        self.declare_parameter("installation_pos", "Horizontal")
+        self.declare_parameter("installation_pos", "horizontal")
         self.declare_parameter("effector_type", "none")
 
     def _load_parameters(self):
@@ -95,10 +95,12 @@ class AgxArmRosNode(Node):
         self.agx_arm = AgxArmFactory.create_arm(config)
         self.agx_arm.connect()
         self.agx_arm.set_speed_percent(self.speed_percent)
-        self.agx_arm.set_installation_pos(self.installation_pos)
         self.arm_joint_names = list(config["joint_limit"].keys())
         self.arm_joint_count = len(self.arm_joint_names)
         self.is_piper = "piper" in self.arm_type
+        # TODO :
+        if self.is_piper:
+            self.agx_arm.set_installation_pos(self.installation_pos)
 
     def _init_effector(self):
         self.gripper: Optional[AgxGripperWrapper] = None
@@ -129,13 +131,14 @@ class AgxArmRosNode(Node):
         self.arm_status_pub = self.create_publisher(
             AgxArmStatus, "/feedback/arm_status", 1
         )
-        self.arm_ctrl_states_pub = self.create_publisher(
-            JointState, "/feedback/arm_ctrl_states", 1
-        )
+        # TODO :arm_ctrl_states
         if self.gripper is not None:
             self.gripper_status_pub = self.create_publisher(
                 GripperStatus, "/feedback/gripper_status", 1
             )
+            self.arm_ctrl_states_pub = self.create_publisher(
+            JointState, "/feedback/arm_ctrl_states", 1
+            )   
         if self.hand is not None:
             self.hand_status_pub = self.create_publisher(
                 HandStatus, "/feedback/hand_status", 1
@@ -268,8 +271,10 @@ class AgxArmRosNode(Node):
                 self._publish_joint_states()
                 self._publish_end_pose()
                 self._publish_arm_status()
-                self._publish_arm_ctrl_states()
                 self._publish_effector_status()
+                # TODO :
+                if self.is_piper :
+                    self._publish_arm_ctrl_states()
             rate.sleep()
     
     ### publish methods
@@ -362,14 +367,14 @@ class AgxArmRosNode(Node):
             msg = HandStatus()
             msg.header.stamp = self._float_to_ros_time(hand_status.timestamp)
             msg.left_or_right = hand_status.left_or_right
-            # 电机状态
+            # status
             msg.thumb_tip_status = hand_status.thumb_tip
             msg.thumb_base_status = hand_status.thumb_base
             msg.index_finger_status = hand_status.index_finger
             msg.middle_finger_status = hand_status.middle_finger
             msg.ring_finger_status = hand_status.ring_finger
             msg.pinky_finger_status = hand_status.pinky_finger
-            # 位置
+            # position
             if finger_pos is not None:
                 msg.thumb_tip_pos = finger_pos.thumb_tip
                 msg.thumb_base_pos = finger_pos.thumb_base
@@ -456,22 +461,22 @@ class AgxArmRosNode(Node):
 
     def _gripper_cmd_callback(self, msg: GripperCmd):
         if self.gripper is None:
-            self.get_logger().warn("夹爪未初始化")
+            self.get_logger().warn("gripper not initialized")
             return
 
         try:
             self.gripper.move(width=msg.width, force=msg.force)
         except ValueError as e:
-            self.get_logger().error(f"夹爪控制参数错误: {e}")
+            self.get_logger().error(f"gripper control param error: {e}")
 
     def _hand_position_time_cmd_callback(self, msg: HandPositionTimeCmd):
         if self.hand is None:
-            self.get_logger().warn("灵巧手未初始化")
+            self.get_logger().warn("revo2 hand not initialized")
             return
         
         try:
             self.hand.position_time_ctrl(
-                mode='pos',
+                mode="pos",
                 thumb_tip=msg.thumb_tip_pos,
                 thumb_base=msg.thumb_base_pos,
                 index_finger=msg.index_finger_pos,
@@ -481,7 +486,7 @@ class AgxArmRosNode(Node):
             )
             time.sleep(0.02)
             self.hand.position_time_ctrl(
-                mode='time',
+                mode="time",
                 thumb_tip=msg.thumb_tip_time,
                 thumb_base=msg.thumb_base_time,
                 index_finger=msg.index_finger_time,
@@ -490,11 +495,11 @@ class AgxArmRosNode(Node):
                 pinky_finger=msg.pinky_finger_time,
             )
         except ValueError as e:
-            self.get_logger().error(f"灵巧手位置/时间控制参数错误: {e}")
+            self.get_logger().error(f"hand control param error: {e}")
 
     def _hand_cmd_callback(self, msg: HandCmd):
         if self.hand is None:
-            self.get_logger().warn("灵巧手未初始化")
+            self.get_logger().warn("revo2 hand not initialized")
             return
         
         mode_to_method = {
@@ -505,7 +510,7 @@ class AgxArmRosNode(Node):
 
         mode = msg.mode.lower()        
         if mode not in mode_to_method:
-            self.get_logger().warn(f"未知的灵巧手控制模式: {mode}")
+            self.get_logger().warn(f"unknown hand control mode: {mode}")
             return
 
         try:
@@ -517,8 +522,15 @@ class AgxArmRosNode(Node):
                 ring_finger=msg.ring_finger,
                 pinky_finger=msg.pinky_finger,
             )
+            # TODO :test hand
+            time.sleep(0.05)
+            print(f"fps",self.hand.get_fps())
+            print(f"pos",self.hand.get_finger_position())
+            print(f"speed",self.hand.get_finger_speed())
+            print(f"current",self.hand.get_finger_current())
+
         except ValueError as e:
-            self.get_logger().error(f"灵巧手控制参数错误: {e}")
+            self.get_logger().error(f"hand control param error: {e}")
 
     ### service callbacks
 

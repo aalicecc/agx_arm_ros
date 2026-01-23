@@ -6,69 +6,62 @@ from dataclasses import dataclass, field
 if TYPE_CHECKING:
     from pyAgxArm.effector import EffectorDriver
 
-
 @dataclass
 class HandStatus:
-    left_or_right: int = 0      # 左右手标志：01 左手；02 右手
-    thumb_tip: int = 0          # 拇指尖电机状态：0 空闲；1 运行；2 堵转
-    thumb_base: int = 0         # 拇指根电机状态：0 空闲；1 运行；2 堵转
-    index_finger: int = 0       # 食指电机状态：0 空闲；1 运行；2 堵转
-    middle_finger: int = 0      # 中指电机状态：0 空闲；1 运行；2 堵转
-    ring_finger: int = 0        # 无名指电机状态：0 空闲；1 运行；2 堵转
-    pinky_finger: int = 0       # 小指电机状态：0 空闲；1 运行；2 堵转
-    hz: float = 0.0             # 消息接收频率
-    timestamp: float = 0.0      # 时间戳
-
+    left_or_right: int = 0      # Hand flag: 01 left hand; 02 right hand
+    thumb_tip: int = 0          # Thumb tip motor status: 0 idle; 1 running; 2 blocked
+    thumb_base: int = 0         # Thumb base motor status: 0 idle; 1 running; 2 blocked
+    index_finger: int = 0       # Index finger motor status: 0 idle; 1 running; 2 blocked
+    middle_finger: int = 0      # Middle finger motor status: 0 idle; 1 running; 2 blocked
+    ring_finger: int = 0        # Ring finger motor status: 0 idle; 1 running; 2 blocked
+    pinky_finger: int = 0       # Pinky finger motor status: 0 idle; 1 running; 2 blocked
+    hz: float = 0.0             # Message receiving frequency
+    timestamp: float = 0.0      # Timestamp
 
 @dataclass
 class FingerPosition:
-    """各指位置数据类"""
-    thumb_tip: int = 0          # 拇指尖位置，范围：[0, 100]
-    thumb_base: int = 0         # 拇指根位置，范围：[0, 100]
-    index_finger: int = 0       # 食指位置，范围：[0, 100]
-    middle_finger: int = 0      # 中指位置，范围：[0, 100]
-    ring_finger: int = 0        # 无名指位置，范围：[0, 100]
-    pinky_finger: int = 0       # 小指位置，范围：[0, 100]
-    hz: float = 0.0             # 消息接收频率
-    timestamp: float = 0.0      # 时间戳
-
+    thumb_tip: int = 0          # Thumb tip position, range: [0, 100]
+    thumb_base: int = 0         # Thumb base position, range: [0, 100]
+    index_finger: int = 0       # Index finger position, range: [0, 100]
+    middle_finger: int = 0      # Middle finger position, range: [0, 100]
+    ring_finger: int = 0        # Ring finger position, range: [0, 100]
+    pinky_finger: int = 0       # Pinky finger position, range: [0, 100]
+    hz: float = 0.0             # Message receiving frequency
+    timestamp: float = 0.0      # Timestamp
 
 @dataclass
 class FingerSpeed:
-    """各指速度数据类"""
-    thumb_tip: int = 0          # 拇指尖速度，范围：[-100, 100]
-    thumb_base: int = 0         # 拇指根速度，范围：[-100, 100]
-    index_finger: int = 0       # 食指速度，范围：[-100, 100]
-    middle_finger: int = 0      # 中指速度，范围：[-100, 100]
-    ring_finger: int = 0        # 无名指速度，范围：[-100, 100]
-    pinky_finger: int = 0       # 小指速度，范围：[-100, 100]
-    hz: float = 0.0             # 消息接收频率
-    timestamp: float = 0.0      # 时间戳
-
+    thumb_tip: int = 0          # Thumb tip speed, range: [-100, 100]
+    thumb_base: int = 0         # Thumb base speed, range: [-100, 100]
+    index_finger: int = 0       # Index finger speed, range: [-100, 100]
+    middle_finger: int = 0      # Middle finger speed, range: [-100, 100]
+    ring_finger: int = 0        # Ring finger speed, range: [-100, 100]
+    pinky_finger: int = 0       # Pinky finger speed, range: [-100, 100]
+    hz: float = 0.0             # Message receiving frequency
+    timestamp: float = 0.0      # Timestamp
 
 @dataclass
 class FingerCurrent:
-    """各指电流数据类"""
-    thumb_tip: int = 0          # 拇指尖电流，范围：[-100, 100]
-    thumb_base: int = 0         # 拇指根电流，范围：[-100, 100]
-    index_finger: int = 0       # 食指电流，范围：[-100, 100]
-    middle_finger: int = 0      # 中指电流，范围：[-100, 100]
-    ring_finger: int = 0        # 无名指电流，范围：[-100, 100]
-    pinky_finger: int = 0       # 小指电流，范围：[-100, 100]
-    hz: float = 0.0             # 消息接收频率
-    timestamp: float = 0.0      # 时间戳
+    thumb_tip: int = 0          # Thumb tip current, range: [-100, 100]
+    thumb_base: int = 0         # Thumb base current, range: [-100, 100]
+    index_finger: int = 0       # Index finger current, range: [-100, 100]
+    middle_finger: int = 0      # Middle finger current, range: [-100, 100]
+    ring_finger: int = 0        # Ring finger current, range: [-100, 100]
+    pinky_finger: int = 0       # Pinky finger current, range: [-100, 100]
+    hz: float = 0.0             # Message receiving frequency
+    timestamp: float = 0.0      # Timestamp
 
 
 class Revo2Wrapper:
 
-    # 手指名称列表
+    # Finger name list
     FINGER_NAMES: List[str] = [
-        'thumb_tip', 'thumb_base', 
-        'index_finger', 'middle_finger', 
+        'thumb_tip', 'thumb_base',
+        'index_finger', 'middle_finger',
         'ring_finger', 'pinky_finger'
     ]
     
-    # 位置/电流/速度控制参数范围
+    # Position/current/speed control parameter ranges
     POSITION_MIN: int = 0
     POSITION_MAX: int = 100
     SPEED_MIN: int = -100
@@ -76,14 +69,14 @@ class Revo2Wrapper:
     CURRENT_MIN: int = -100
     CURRENT_MAX: int = 100
     TIME_MIN: int = 0
-    TIME_MAX: int = 255  # 单位10ms
+    TIME_MAX: int = 255  # Unit: 10ms
     
-    # 电机状态常量
-    MOTOR_STATUS_IDLE: int = 0      # 空闲
-    MOTOR_STATUS_RUNNING: int = 1   # 运行
-    MOTOR_STATUS_BLOCKED: int = 2   # 堵转
+    # Motor status constants
+    MOTOR_STATUS_IDLE: int = 0      # Idle
+    MOTOR_STATUS_RUNNING: int = 1   # Running
+    MOTOR_STATUS_BLOCKED: int = 2   # Blocked
     
-    # 左右手标志
+    # Hand flags
     HAND_LEFT: int = 1
     HAND_RIGHT: int = 2
     
@@ -103,7 +96,7 @@ class Revo2Wrapper:
             self._initialized = True
             return True
         except Exception as e:
-            print(f"[Revo2Wrapper] 初始化失败: {e}")
+            print(f"[Revo2Wrapper] Initialization failed: {e}")
             return False
     
     def is_ok(self) -> bool:
@@ -198,29 +191,37 @@ class Revo2Wrapper:
         return current
     
     def _validate_position(self, value: int, name: str) -> None:
-        """验证位置参数范围"""
+        """Validate position parameter range"""
         if not (self.POSITION_MIN <= value <= self.POSITION_MAX):
             raise ValueError(
-                f"{name}位置必须在[{self.POSITION_MIN}, {self.POSITION_MAX}]范围内，"
-                f"当前值：{value}"
+                f"{name} position must be in range [{self.POSITION_MIN}, {self.POSITION_MAX}], "
+                f"current value: {value}"
             )
     
     def _validate_speed(self, value: int, name: str) -> None:
-        """验证速度参数范围"""
+        """Validate speed parameter range"""
         if not (self.SPEED_MIN <= value <= self.SPEED_MAX):
             raise ValueError(
-                f"{name}速度必须在[{self.SPEED_MIN}, {self.SPEED_MAX}]范围内，"
-                f"当前值：{value}"
+                f"{name} speed must be in range [{self.SPEED_MIN}, {self.SPEED_MAX}], "
+                f"current value: {value}"
             )
     
     def _validate_current(self, value: int, name: str) -> None:
-        """验证电流参数范围"""
+        """Validate current parameter range"""
         if not (self.CURRENT_MIN <= value <= self.CURRENT_MAX):
             raise ValueError(
-                f"{name}电流必须在[{self.CURRENT_MIN}, {self.CURRENT_MAX}]范围内，"
-                f"当前值：{value}"
+                f"{name} current must be in range [{self.CURRENT_MIN}, {self.CURRENT_MAX}], "
+                f"current value: {value}"
             )
     
+    def _validate_time(self, value: int, name: str) -> None:
+        """Validate time parameter range"""
+        if not (self.TIME_MIN <= value <= self.TIME_MAX):
+            raise ValueError(
+                f"{name} time must be in range [{self.TIME_MIN}, {self.TIME_MAX}], "
+                f"current value: {value}"
+            )
+
     def position_ctrl(
         self,
         thumb_tip: int = 0,
@@ -233,13 +234,13 @@ class Revo2Wrapper:
         if not self._initialized or self._effector is None:
             return False
         
-        # 参数验证
-        self._validate_position(thumb_tip, '拇指尖')
-        self._validate_position(thumb_base, '拇指根')
-        self._validate_position(index_finger, '食指')
-        self._validate_position(middle_finger, '中指')
-        self._validate_position(ring_finger, '无名指')
-        self._validate_position(pinky_finger, '小指')
+        # Parameter validation
+        self._validate_position(thumb_tip, 'Thumb tip')
+        self._validate_position(thumb_base, 'Thumb base')
+        self._validate_position(index_finger, 'Index finger')
+        self._validate_position(middle_finger, 'Middle finger')
+        self._validate_position(ring_finger, 'Ring finger')
+        self._validate_position(pinky_finger, 'Pinky finger')
         
         try:
             self._effector.position_ctrl(
@@ -252,7 +253,7 @@ class Revo2Wrapper:
             )
             return True
         except Exception as e:
-            print(f"[Revo2Wrapper] 位置控制失败: {e}")
+            print(f"[Revo2Wrapper] Position control failed: {e}")
             return False
     
     def speed_ctrl(
@@ -267,13 +268,13 @@ class Revo2Wrapper:
         if not self._initialized or self._effector is None:
             return False
         
-        # 参数验证
-        self._validate_speed(thumb_tip, '拇指尖')
-        self._validate_speed(thumb_base, '拇指根')
-        self._validate_speed(index_finger, '食指')
-        self._validate_speed(middle_finger, '中指')
-        self._validate_speed(ring_finger, '无名指')
-        self._validate_speed(pinky_finger, '小指')
+        # Parameter validation
+        self._validate_speed(thumb_tip, 'Thumb tip')
+        self._validate_speed(thumb_base, 'Thumb base')
+        self._validate_speed(index_finger, 'Index finger')
+        self._validate_speed(middle_finger, 'Middle finger')
+        self._validate_speed(ring_finger, 'Ring finger')
+        self._validate_speed(pinky_finger, 'Pinky finger')
         
         try:
             self._effector.speed_ctrl(
@@ -286,7 +287,7 @@ class Revo2Wrapper:
             )
             return True
         except Exception as e:
-            print(f"[Revo2Wrapper] 速度控制失败: {e}")
+            print(f"[Revo2Wrapper] Speed control failed: {e}")
             return False
     
     def current_ctrl(
@@ -301,13 +302,13 @@ class Revo2Wrapper:
         if not self._initialized or self._effector is None:
             return False
         
-        # 参数验证
-        self._validate_current(thumb_tip, '拇指尖')
-        self._validate_current(thumb_base, '拇指根')
-        self._validate_current(index_finger, '食指')
-        self._validate_current(middle_finger, '中指')
-        self._validate_current(ring_finger, '无名指')
-        self._validate_current(pinky_finger, '小指')
+        # Parameter validation
+        self._validate_current(thumb_tip, 'Thumb tip')
+        self._validate_current(thumb_base, 'Thumb base')
+        self._validate_current(index_finger, 'Index finger')
+        self._validate_current(middle_finger, 'Middle finger')
+        self._validate_current(ring_finger, 'Ring finger')
+        self._validate_current(pinky_finger, 'Pinky finger')
         
         try:
             self._effector.current_ctrl(
@@ -320,7 +321,7 @@ class Revo2Wrapper:
             )
             return True
         except Exception as e:
-            print(f"[Revo2Wrapper] 电流控制失败: {e}")
+            print(f"[Revo2Wrapper] Current control failed: {e}")
             return False
     
     def position_time_ctrl(
@@ -333,58 +334,32 @@ class Revo2Wrapper:
         ring_finger: int = 0,
         pinky_finger: int = 0
     ) -> bool:
-        """
-        位置/时间混合控制
-        
-        使用方法：
-        1. 先用 mode="pos" 下发目标位置
-        2. 再用 mode="time" 下发到位时间（单位10ms）
-        注意：两条消息的间隔不应超过50ms
-        
-        Args:
-            mode: 控制模式，'pos'为位置模式(0~100)，'time'为时间模式(单位10ms，范围0~255)
-            thumb_tip: 拇指尖位置/时间
-            thumb_base: 拇指根位置/时间
-            index_finger: 食指位置/时间
-            middle_finger: 中指位置/时间
-            ring_finger: 无名指位置/时间
-            pinky_finger: 小指位置/时间
-        
-        Returns:
-            bool: 指令发送是否成功
-        
-        示例：
-            # 拇指尖移动到位置100，然后设置2秒到位（200 * 10ms）
-            hand.position_time_ctrl(mode="pos", thumb_tip=100)
-            time.sleep(0.02)  # 建议短间隔，确保 < 50ms
-            hand.position_time_ctrl(mode="time", thumb_tip=200)
-        """
         if not self._initialized or self._effector is None:
             return False
         
         if mode not in ['pos', 'time']:
-            raise ValueError(f"mode必须是'pos'或'time'，当前值：{mode}")
+            raise ValueError(f"mode must be 'pos' or 'time', current value: {mode}")
         
-        # 根据模式选择验证方法
+        # Select validation method based on mode
         if mode == 'pos':
-            self._validate_position(thumb_tip, '拇指尖')
-            self._validate_position(thumb_base, '拇指根')
-            self._validate_position(index_finger, '食指')
-            self._validate_position(middle_finger, '中指')
-            self._validate_position(ring_finger, '无名指')
-            self._validate_position(pinky_finger, '小指')
+            self._validate_position(thumb_tip, 'Thumb tip')
+            self._validate_position(thumb_base, 'Thumb base')
+            self._validate_position(index_finger, 'Index finger')
+            self._validate_position(middle_finger, 'Middle finger')
+            self._validate_position(ring_finger, 'Ring finger')
+            self._validate_position(pinky_finger, 'Pinky finger')
         else:  # time mode
-            for name, value in [
-                ('拇指尖', thumb_tip), ('拇指根', thumb_base),
-                ('食指', index_finger), ('中指', middle_finger),
-                ('无名指', ring_finger), ('小指', pinky_finger)
-            ]:
-                if not (self.TIME_MIN <= value <= self.TIME_MAX):
-                    raise ValueError(
-                        f"{name}时间必须在[{self.TIME_MIN}, {self.TIME_MAX}]范围内，"
-                        f"当前值：{value}"
-                    )
+            self._validate_time(thumb_tip, 'Thumb tip')
+            self._validate_time(thumb_base, 'Thumb base')
+            self._validate_time(index_finger, 'Index finger')
+            self._validate_time(middle_finger, 'Middle finger')
+            self._validate_time(ring_finger, 'Ring finger')
+            self._validate_time(pinky_finger, 'Pinky finger')
         
+        # TODO:
+        print(f"[Revo2Wrapper] Position/time hybrid control: {mode}")
+        print(f"thumb_tip: {thumb_tip}, thumb_base: {thumb_base}, index_finger: {index_finger}, middle_finger: {middle_finger}, ring_finger: {ring_finger}, pinky_finger: {pinky_finger}")
+
         try:
             self._effector.position_time_ctrl(
                 mode=mode,
@@ -397,7 +372,7 @@ class Revo2Wrapper:
             )
             return True
         except Exception as e:
-            print(f"[Revo2Wrapper] 位置/时间混合控制失败: {e}")
+            print(f"[Revo2Wrapper] Position/time hybrid control failed: {e}")
             return False
     
     def is_hand_left(self) -> bool:
@@ -411,101 +386,3 @@ class Revo2Wrapper:
         if status is None:
             return False
         return status.left_or_right == self.HAND_RIGHT
-
-    ### 便捷控制方法
-    
-    def open_all(self) -> bool:
-        return self.position_ctrl(
-            thumb_tip=0,
-            thumb_base=0,
-            index_finger=0,
-            middle_finger=0,
-            ring_finger=0,
-            pinky_finger=0
-        )
-    
-    def close_all(self) -> bool:
-        return self.position_ctrl(
-            thumb_tip=100,
-            thumb_base=100,
-            index_finger=100,
-            middle_finger=100,
-            ring_finger=100,
-            pinky_finger=100
-        )
-    
-    def set_all_fingers_pose(self, position: int) -> bool:
-        self._validate_position(position, '所有手指')
-        return self.position_ctrl(
-            thumb_tip=position,
-            thumb_base=position,
-            index_finger=position,
-            middle_finger=position,
-            ring_finger=position,
-            pinky_finger=position
-        )
-    
-    def point(self) -> bool:
-        return self.position_ctrl(
-            thumb_tip=100,
-            thumb_base=100,
-            index_finger=0,
-            middle_finger=100,
-            ring_finger=100,
-            pinky_finger=100
-        )
-    
-    def victory(self) -> bool:
-        return self.position_ctrl(
-            thumb_tip=100,
-            thumb_base=100,
-            index_finger=0,
-            middle_finger=0,
-            ring_finger=100,
-            pinky_finger=100
-        )
-    
-    def thumb_up(self) -> bool:
-        return self.position_ctrl(
-            thumb_tip=0,
-            thumb_base=0,
-            index_finger=100,
-            middle_finger=100,
-            ring_finger=100,
-            pinky_finger=100
-        )
-    
-    ### ROS发布辅助方法
-
-    # def get_finger_position_list(self) -> List[int]:
-    #     pos = self.get_finger_position()
-    #     if pos is None:
-    #         return []
-        
-    #     return [
-    #         pos.thumb_tip, pos.thumb_base,
-    #         pos.index_finger, pos.middle_finger,
-    #         pos.ring_finger, pos.pinky_finger
-    #     ]
-    
-    # def get_status_dict(self) -> Dict[str, Any]:
-    #     status = self.get_status()
-        
-    #     result = {}
-        
-    #     if status is not None:
-    #         result.update({
-    #             'left_or_right': status.left_or_right,
-    #             'motor_status': {
-    #                 'thumb_tip': status.thumb_tip,
-    #                 'thumb_base': status.thumb_base,
-    #                 'index_finger': status.index_finger,
-    #                 'middle_finger': status.middle_finger,
-    #                 'ring_finger': status.ring_finger,
-    #                 'pinky_finger': status.pinky_finger,
-    #             },
-    #             'status_hz': status.hz,
-    #             'status_timestamp': status.timestamp
-    #         })
-    #     return result
-    
