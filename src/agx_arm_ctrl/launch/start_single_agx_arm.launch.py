@@ -22,35 +22,24 @@ def generate_launch_description():
         description='CAN port to be used by the AGX Arm node.'
     )
 
-    pub_rate_arg = DeclareLaunchArgument(
-        'pub_rate',
-        default_value='200',
-        description='Publishing rate for the AGX Arm node.'
+    arm_type_arg = DeclareLaunchArgument(
+        'arm_type',
+        default_value='piper',
+        description='Type of robotic arm.',
+        choices=['piper', 'nero', 'piper_x', 'piper_h', 'piper_l']
+    )
+
+    effector_type_arg = DeclareLaunchArgument(
+        'effector_type',
+        default_value='none',
+        description='End effector type.',
+        choices=['none', 'agx_gripper', 'revo2']
     )
     
     auto_enable_arg = DeclareLaunchArgument(
         'auto_enable',
         default_value='True',
         description='Automatically enable the AGX Arm node.'
-    )
-
-    arm_type_arg = DeclareLaunchArgument(
-        'arm_type',
-        default_value='piper_h',
-        description='Type of robotic arm.',
-        choices=['piper', 'nero', 'piper_x', 'piper_h', 'piper_l']
-    )
-
-    speed_percent_arg = DeclareLaunchArgument(
-        'speed_percent',
-        default_value='100',
-        description='Movement speed as a percentage of maximum speed.'
-    )
-
-    enable_timeout_arg = DeclareLaunchArgument(
-        'enable_timeout',
-        default_value='5.0',
-        description='Timeout in seconds for arm enable/disable operations.'
     )
 
     installation_pos_arg = DeclareLaunchArgument(
@@ -60,11 +49,22 @@ def generate_launch_description():
         choices=['horizontal', 'left', 'right']
     )
 
-    effector_type_arg = DeclareLaunchArgument(
-        'effector_type',
-        default_value='none',
-        description='End effector type.',
-        choices=['none', 'agx_gripper', 'revo2']
+    speed_percent_arg = DeclareLaunchArgument(
+        'speed_percent',
+        default_value='100',
+        description='Movement speed as a percentage of maximum speed.'
+    )
+
+    pub_rate_arg = DeclareLaunchArgument(
+        'pub_rate',
+        default_value='200',
+        description='Publishing rate for the AGX Arm node.'
+    )
+
+    enable_timeout_arg = DeclareLaunchArgument(
+        'enable_timeout',
+        default_value='5.0',
+        description='Timeout in seconds for arm enable/disable operations.'
     )
 
     # node
@@ -115,13 +115,13 @@ def generate_launch_description():
         # arguments
         log_level_arg,
         can_port_arg,
-        pub_rate_arg,
-        auto_enable_arg,
         arm_type_arg,
-        speed_percent_arg,
-        enable_timeout_arg,
-        installation_pos_arg,
         effector_type_arg,
+        auto_enable_arg,
+        installation_pos_arg,
+        speed_percent_arg,
+        pub_rate_arg,
+        enable_timeout_arg,
         # node
         agx_arm_node
     ])

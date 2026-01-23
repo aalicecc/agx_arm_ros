@@ -60,33 +60,33 @@ class AgxArmRosNode(Node):
 
     def _declare_parameters(self):
         self.declare_parameter("can_port", "can0")
-        self.declare_parameter("pub_rate", 200)
-        self.declare_parameter("auto_enable", True)
         self.declare_parameter("arm_type", "piper")
-        self.declare_parameter("speed_percent", 100)
-        self.declare_parameter("enable_timeout", 5.0)
-        self.declare_parameter("installation_pos", "horizontal")
         self.declare_parameter("effector_type", "none")
+        self.declare_parameter("auto_enable", True)
+        self.declare_parameter("installation_pos", "horizontal")
+        self.declare_parameter("speed_percent", 100)
+        self.declare_parameter("pub_rate", 200)
+        self.declare_parameter("enable_timeout", 5.0)
 
     def _load_parameters(self):
         self.can_port = self.get_parameter("can_port").value
-        self.pub_rate = self.get_parameter("pub_rate").value
-        self.auto_enable = self.get_parameter("auto_enable").value
         self.arm_type = self.get_parameter("arm_type").value
-        self.speed_percent = self.get_parameter("speed_percent").value
-        self.enable_timeout = self.get_parameter("enable_timeout").value
-        self.installation_pos = self.get_parameter("installation_pos").value
         self.effector_type = self.get_parameter("effector_type").value
+        self.auto_enable = self.get_parameter("auto_enable").value
+        self.installation_pos = self.get_parameter("installation_pos").value
+        self.speed_percent = self.get_parameter("speed_percent").value
+        self.pub_rate = self.get_parameter("pub_rate").value
+        self.enable_timeout = self.get_parameter("enable_timeout").value
 
     def _log_parameters(self):
         self.get_logger().info(f"can_port: {self.can_port}")
-        self.get_logger().info(f"pub_rate: {self.pub_rate}")
-        self.get_logger().info(f"auto_enable: {self.auto_enable}")
         self.get_logger().info(f"arm_type: {self.arm_type}")
-        self.get_logger().info(f"speed_percent: {self.speed_percent}")
-        self.get_logger().info(f"enable_timeout: {self.enable_timeout}")
-        self.get_logger().info(f"installation_pos: {self.installation_pos}")
         self.get_logger().info(f"effector_type: {self.effector_type}")
+        self.get_logger().info(f"auto_enable: {self.auto_enable}")
+        self.get_logger().info(f"installation_pos: {self.installation_pos}")
+        self.get_logger().info(f"speed_percent: {self.speed_percent}")
+        self.get_logger().info(f"pub_rate: {self.pub_rate}")
+        self.get_logger().info(f"enable_timeout: {self.enable_timeout}")
 
     def _init_agx_arm(self):
         config = create_agx_arm_config(
