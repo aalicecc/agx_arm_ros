@@ -1,7 +1,7 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 import os
 from ament_index_python.packages import get_package_share_directory
 
@@ -67,6 +67,19 @@ def generate_launch_description():
         description='Timeout in seconds for arm enable/disable operations.'
     )
 
+    payload_arg = DeclareLaunchArgument(
+        'payload',
+        default_value='empty',
+        description='Payload type.',
+        choices=['empty', 'half', 'full']
+    )
+
+    tcp_offset_arg = DeclareLaunchArgument(
+        'tcp_offset',
+        default_value='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]',
+        description='TCP offset in x, y, z, roll, pitch, yaw in meters/radians.'
+    )
+
     # node
     agx_arm_node = Node(
         package='agx_arm_ctrl',
@@ -83,11 +96,13 @@ def generate_launch_description():
             'enable_timeout': LaunchConfiguration('enable_timeout'),
             'installation_pos': LaunchConfiguration('installation_pos'),
             'effector_type': LaunchConfiguration('effector_type'),
+            'payload': LaunchConfiguration('payload'),
+            'tcp_offset': LaunchConfiguration('tcp_offset'),
         }],
         remappings=[
             # feedback topics
             ('/feedback/joint_states', '/feedback/joint_states'),
-            ('/feedback/end_pose', '/feedback/end_pose'),
+            ('/feedback/tcp_pose', '/feedback/tcp_pose'),
             ('/feedback/arm_status', '/feedback/arm_status'),
             ('/feedback/arm_ctrl_states', '/feedback/arm_ctrl_states'),
             ('/feedback/gripper_status', '/feedback/gripper_status'),
@@ -122,6 +137,8 @@ def generate_launch_description():
         speed_percent_arg,
         pub_rate_arg,
         enable_timeout_arg,
+        payload_arg,
+        tcp_offset_arg,
         # node
         agx_arm_node
     ])

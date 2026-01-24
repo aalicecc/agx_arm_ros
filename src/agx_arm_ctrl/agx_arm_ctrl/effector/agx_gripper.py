@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*-coding:utf8-*-
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from pyAgxArm.effector import EffectorDriver
+    from pyAgxArm.protocols.can_protocol.drivers.core.arm_driver_abstract import ArmDriverAbstract
+    from pyAgxArm.protocols.can_protocol.drivers import AgxGripperDriverDefault
 
 
 @dataclass
@@ -51,8 +52,8 @@ class AgxGripperWrapper:
     FORCE_MAX: float = 3.0      # maximum force, unit: N
     
     def __init__(self, agx_arm):
-        self._agx_arm = agx_arm
-        self._effector: Optional["EffectorDriver"] = None
+        self._agx_arm: Optional[ArmDriverAbstract] = agx_arm
+        self._effector: Optional[AgxGripperDriverDefault] = None
         self._initialized = False
     
     def initialize(self) -> bool:
