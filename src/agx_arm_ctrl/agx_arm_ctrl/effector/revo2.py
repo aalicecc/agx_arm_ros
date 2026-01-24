@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*-coding:utf8-*-
-from typing import Optional, Dict, Any, List, Literal, TYPE_CHECKING
-from dataclasses import dataclass, field
+from typing import Optional, List, Literal, TYPE_CHECKING
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from pyAgxArm.effector import EffectorDriver
+    from pyAgxArm.protocols.can_protocol.drivers.core.arm_driver_abstract import ArmDriverAbstract
+    from pyAgxArm.protocols.can_protocol.drivers import Revo2DriverDefault
 
 
 @dataclass
@@ -88,8 +89,8 @@ class Revo2Wrapper:
     HAND_RIGHT: int = 2
     
     def __init__(self, agx_arm):
-        self._agx_arm = agx_arm
-        self._effector: Optional["EffectorDriver"] = None
+        self._agx_arm: Optional[ArmDriverAbstract] = agx_arm
+        self._effector: Optional[Revo2DriverDefault] = None
         self._initialized: bool = False
     
     def initialize(self) -> bool:

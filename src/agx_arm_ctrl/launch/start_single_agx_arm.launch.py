@@ -60,11 +60,24 @@ def generate_launch_description():
         choices=['horizontal', 'left', 'right']
     )
 
+    payload_arg = DeclareLaunchArgument(
+        'payload',
+        default_value='empty',
+        description='Payload type.',
+        choices=['empty', 'half', 'full']
+    )
+
     effector_type_arg = DeclareLaunchArgument(
         'effector_type',
-        default_value='none',
+        default_value='agx_gripper',
         description='End effector type.',
         choices=['none', 'agx_gripper', 'revo2']
+    )
+
+    tcp_offset_arg = DeclareLaunchArgument(
+        'tcp_offset',
+        default_value='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]',
+        description='TCP offset in x, y, z, roll, pitch, yaw in meters/radians.'
     )
 
     # node
@@ -82,12 +95,14 @@ def generate_launch_description():
             'speed_percent': LaunchConfiguration('speed_percent'),
             'enable_timeout': LaunchConfiguration('enable_timeout'),
             'installation_pos': LaunchConfiguration('installation_pos'),
+            'payload': LaunchConfiguration('payload'),
             'effector_type': LaunchConfiguration('effector_type'),
+            'tcp_offset': LaunchConfiguration('tcp_offset'),
         }],
         remappings=[
             # feedback topics
             ('/feedback/joint_states', '/feedback/joint_states'),
-            ('/feedback/end_pose', '/feedback/end_pose'),
+            ('/feedback/tcp_pose', '/feedback/tcp_pose'),
             ('/feedback/arm_status', '/feedback/arm_status'),
             ('/feedback/arm_ctrl_states', '/feedback/arm_ctrl_states'),
             ('/feedback/gripper_status', '/feedback/gripper_status'),
@@ -121,7 +136,9 @@ def generate_launch_description():
         speed_percent_arg,
         enable_timeout_arg,
         installation_pos_arg,
+        payload_arg,
         effector_type_arg,
+        tcp_offset_arg,
         # node
         agx_arm_node
     ])
