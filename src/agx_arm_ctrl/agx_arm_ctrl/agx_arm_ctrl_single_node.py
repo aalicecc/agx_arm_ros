@@ -16,9 +16,32 @@ from scipy.spatial.transform import Rotation as R
 
 from agx_arm_msgs.msg import (
     AgxArmStatus, GripperStatus, GripperCmd, 
-    HandStatus, HandCmd, HandPositionTimeCmd
+    HandStatus, HandCmd, HandPositionTimeCmd,
+    MoveMITMsg
 )
 from agx_arm_ctrl.effector import AgxGripperWrapper, Revo2Wrapper
+
+GRIPPER_JOINT_NAME = "gripper"
+
+FINGER_CONFIG = [
+    ("joint1_1", "thumb_base"),
+    ("joint1_2", "thumb_tip"),
+    ("joint2", "index_finger"),
+    ("joint3", "middle_finger"),
+    ("joint4", "ring_finger"),
+    ("joint5", "pinky_finger"),
+]
+
+LEFT_HAND_JOINT_NAMES = [f"l_f_{suffix}" for suffix, _ in FINGER_CONFIG]
+RIGHT_HAND_JOINT_NAMES = [f"r_f_{suffix}" for suffix, _ in FINGER_CONFIG]
+HAND_JOINT_NAMES = LEFT_HAND_JOINT_NAMES + RIGHT_HAND_JOINT_NAMES
+
+HAND_JOINT_TO_FINGER_ATTR = {
+    f"{prefix}{suffix}": attr
+    for prefix in ("l_f_", "r_f_")
+    for suffix, attr in FINGER_CONFIG
+}
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -26,6 +49,13 @@ if TYPE_CHECKING:
 
 class ControlMode(IntEnum):
     TEACH = 0x02
+
+class MITModeLimit:
+    P_DES_RANGE = (-12.5, 12.5)
+    V_DES_RANGE = (-45.0, 45.0)
+    KP_RANGE = (0.0, 500.0)
+    KD_RANGE = (-5.0, 5.0)
+    TORQUE_RANGE = (-18.0, 18.0)
 
 class AgxArmRosNode(Node):
 
@@ -164,6 +194,9 @@ class AgxArmRosNode(Node):
 
     def _setup_subscribers(self):
         self.create_subscription(
+            JointState, "/control/joint_states", self._joint_states_callback, 1
+        )
+        self.create_subscription(
             JointState, "/control/move_j", self._move_j_callback, 1
         )
         self.create_subscription(
@@ -177,10 +210,10 @@ class AgxArmRosNode(Node):
                 PoseArray, "/control/move_c", self._move_c_callback, 1
             )
             self.create_subscription(
-                JointState, "/control/move_mit", self._move_mit_callback, 1
+                JointState, "/control/move_js", self._move_js_callback, 1
             )
             self.create_subscription(
-                JointState, "/control/move_js", self._move_js_callback, 1
+                MoveMITMsg, "/control/move_mit", self._move_mit_callback, 1
             )
             if self.gripper is not None:
                 self.create_subscription(
@@ -233,6 +266,16 @@ class AgxArmRosNode(Node):
             arm_status = self.agx_arm.get_arm_status()
             if arm_status is not None and arm_status.msg.ctrl_mode == ControlMode.TEACH:
                 self.get_logger().warn("Agx_arm is in teach mode, cannot control")
+                return False
+        return True
+
+    def _validate_mit_params(self, params: dict, constraints: dict) -> bool:
+        for param_name, value in params.items():
+            min_val, max_val = constraints[param_name]
+            if not (min_val <= value < max_val):
+                self.get_logger().error(
+                    f"Invalid {param_name}: {value} (valid range: [{min_val}, {max_val}])"
+                )
                 return False
         return True
 
@@ -300,6 +343,28 @@ class AgxArmRosNode(Node):
     
     ### publish methods
 
+    def _get_gripper_joint_data(self):
+        if self.gripper is None or not self.gripper.is_ok():
+            return []
+        status = self.gripper.get_status()
+        if status is None:
+            return []
+        return [
+            (GRIPPER_JOINT_NAME, status.width, 0.0, 0.0)
+        ]
+
+    def _get_hand_joint_data(self):
+        if self.hand is None or not self.hand.is_ok():
+            return []
+        finger_pos = self.hand.get_finger_position()
+        if finger_pos is None:
+            return []
+        joint_names = LEFT_HAND_JOINT_NAMES if self.hand.is_hand_left() else RIGHT_HAND_JOINT_NAMES
+        return [
+            (name, getattr(finger_pos, HAND_JOINT_TO_FINGER_ATTR[name], 0) * 1.0, 0.0, 0.0)
+            for name in joint_names
+        ]
+
     def _publish_joint_states(self):
         joint_states = self.agx_arm.get_joint_states()
         if joint_states is None or joint_states.hz <= 0:
@@ -307,11 +372,20 @@ class AgxArmRosNode(Node):
 
         msg = JointState()
         msg.header.stamp = self._float_to_ros_time(joint_states.timestamp)
-        msg.name = self.arm_joint_names
-        msg.position = joint_states.msg
-        msg.velocity = [0.0] * self.arm_joint_count
-        msg.effort = [0.0] * self.arm_joint_count
-        self.joint_states_pub.publish(msg)
+        
+        joints_data = []
+        # arm 
+        joints_data.extend(
+            (name, pos, 0.0, 0.0)
+            for name, pos in zip(self.arm_joint_names, joint_states.msg)
+        )
+        # gripper
+        joints_data.extend(self._get_gripper_joint_data())
+        # hand
+        joints_data.extend(self._get_hand_joint_data())
+        if joints_data:
+            msg.name, msg.position, msg.velocity, msg.effort =map(list, zip(*joints_data))
+            self.joint_states_pub.publish(msg)
 
     def _publish_pose(self):
         flange_pose = self.agx_arm.get_flange_pose()
@@ -416,12 +490,63 @@ class AgxArmRosNode(Node):
             self.hand_status_pub.publish(msg)
 
     def _publish_effector_status(self):
-        if self.is_piper and self.gripper is not None and self.gripper.is_ok():
+        if self.gripper is not None and self.gripper.is_ok():
             self._publish_gripper_status()
         if self.hand is not None and self.hand.is_ok():
             self._publish_hand_status()
 
     ### arm control callbacks
+
+    def _control_arm_joints(self, joint_pos):
+        arm_joints = {
+            name : value
+            for name, value in joint_pos.items()
+            if name in self.arm_joint_names
+        }
+        if arm_joints:
+            joints = [arm_joints.get(name, 0) for name in self.arm_joint_names]
+            self.agx_arm.move_j(joints)
+            self.is_mit_mode = False
+
+    def _control_gripper_joint(self, joint_pos):
+        if GRIPPER_JOINT_NAME not in joint_pos:
+            return
+        if self.gripper is None:
+            self.get_logger().warn("gripper not initialized")
+        else:
+            self.gripper.move(joint_pos[GRIPPER_JOINT_NAME])
+
+    def _control_hand_joints(self, joint_pos):
+        hand_joints = {
+            name : int(value)
+            for name, value in joint_pos.items()
+            if name in HAND_JOINT_NAMES
+        }
+        if not hand_joints:
+            return
+    
+        if self.hand is None:
+            self.get_logger().warn("revo2 hand not initialized")
+            return
+        finger_kwargs = {
+            HAND_JOINT_TO_FINGER_ATTR[name] : value
+            for name, value in hand_joints.items()
+            if name in HAND_JOINT_TO_FINGER_ATTR
+        }
+        if finger_kwargs:
+            self.hand.position_ctrl(**finger_kwargs)
+
+    def _joint_states_callback(self, msg: JointState):
+        if not self._check_can_control():
+            return
+
+        joint_pos = {
+            name :self._safe_get_value(msg.position, idx)
+            for idx, name in enumerate(msg.name)
+        }
+        self._control_arm_joints(joint_pos)
+        self._control_gripper_joint(joint_pos)
+        self._control_hand_joints(joint_pos)
 
     def _move_j_callback(self, msg: JointState):
         if not self._check_can_control():
@@ -480,18 +605,45 @@ class AgxArmRosNode(Node):
         self.agx_arm.move_js(joints)
         self.is_mit_mode = True
 
-    def _move_mit_callback(self, msg: JointState):
+    def _move_mit_callback(self, msg: MoveMITMsg):
         if not self.is_piper:
             self.get_logger().warn("move_mit just piper series supported")
             return
         if not self._check_can_control():
             return
-
-        joint_pos = {}          
-        for idx, joint_name in enumerate(msg.name):
-            joint_pos[joint_name] = self._safe_get_value(msg.position, idx)
-        for i in range(1, self.arm_joint_count + 1):
-            self.agx_arm.move_mit(joint_index=i, p_des=joint_pos.get(f'j{i}', 0), v_des=0, kp=10.0, kd=0.8, t_ff=0)
+        
+        arrays = [msg.joint_index, msg.p_des, msg.v_des, msg.kp, msg.kd, msg.torque]
+        if len(set(len(arr) for arr in arrays)) > 1:
+            self.get_logger().error("MoveMITMsg arrays have inconsistent lengths")
+            return
+        
+        if not arrays[0]:  
+            self.get_logger().warn("Received empty MoveMITMsg")
+            return
+        
+        constraints = {
+            "joint_index": (1, self.arm_joint_count + 1),
+            "p_des": MITModeLimit.P_DES_RANGE,
+            "v_des": MITModeLimit.V_DES_RANGE,
+            "kp": MITModeLimit.KP_RANGE,
+            "kd": MITModeLimit.KD_RANGE,
+            "torque": MITModeLimit.TORQUE_RANGE,
+        }
+        
+        for i in range(len(msg.joint_index)):
+            params = {
+                "joint_index": msg.joint_index[i],
+                "p_des": msg.p_des[i],
+                "v_des": msg.v_des[i],
+                "kp": msg.kp[i],
+                "kd": msg.kd[i],
+                "torque": msg.torque[i],
+            }
+            
+            if not self._validate_mit_params(params, constraints):
+                return
+            
+            self.agx_arm.move_mit(**params)
         self.is_mit_mode = True
 
     ### effector control callbacks
@@ -500,7 +652,6 @@ class AgxArmRosNode(Node):
         if self.gripper is None:
             self.get_logger().warn("gripper not initialized")
             return
-
         try:
             self.gripper.move(width=msg.width, force=msg.force)
         except ValueError as e:
@@ -521,7 +672,6 @@ class AgxArmRosNode(Node):
                 ring_finger=msg.ring_finger_pos,
                 pinky_finger=msg.pinky_finger_pos,
             )
-            time.sleep(0.02)
             self.hand.position_time_ctrl(
                 mode="time",
                 thumb_tip=msg.thumb_tip_time,
@@ -559,13 +709,6 @@ class AgxArmRosNode(Node):
                 ring_finger=msg.ring_finger,
                 pinky_finger=msg.pinky_finger,
             )
-            # TODO :test hand
-            time.sleep(0.05)
-            print(f"fps",self.hand.get_fps())
-            print(f"pos",self.hand.get_finger_position())
-            print(f"speed",self.hand.get_finger_speed())
-            print(f"current",self.hand.get_finger_current())
-
         except ValueError as e:
             self.get_logger().error(f"hand control param error: {e}")
 

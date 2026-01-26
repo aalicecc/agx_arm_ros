@@ -8,8 +8,10 @@ from geometry_msgs.msg import PoseStamped
 from std_srvs.srv import SetBool, Empty
 from scipy.spatial.transform import Rotation as R
 
+from geometry_msgs.msg import PoseArray
+
 from agx_arm_msgs.msg import (
-    AgxArmStatus, TriplePose,
+    AgxArmStatus, MoveMITMsg,
     GripperStatus, GripperCmd,
     HandStatus, HandCmd, HandPositionTimeCmd
 )
@@ -40,13 +42,16 @@ class AgxArmTestNode(Node):
         )
 
         # ==================== 控制话题发布 ====================
+        # 融合控制（同时控制机械臂、夹爪、灵巧手）
+        self.joint_states_pub = self.create_publisher(JointState, "/control/joint_states", 1)
+        
         # 机械臂控制
         self.move_j_pub = self.create_publisher(JointState, "/control/move_j", 1)
         self.move_p_pub = self.create_publisher(PoseStamped, "/control/move_p", 1)
         self.move_l_pub = self.create_publisher(PoseStamped, "/control/move_l", 1)
-        self.move_c_pub = self.create_publisher(TriplePose, "/control/move_c", 1)
+        self.move_c_pub = self.create_publisher(PoseArray, "/control/move_c", 1)
         self.move_js_pub = self.create_publisher(JointState, "/control/move_js", 1)
-        self.move_mit_pub = self.create_publisher(JointState, "/control/move_mit", 1)
+        self.move_mit_pub = self.create_publisher(MoveMITMsg, "/control/move_mit", 1)
         
         # 末端执行器控制
         self.gripper_cmd_pub = self.create_publisher(GripperCmd, "/control/gripper", 1)
@@ -84,10 +89,11 @@ class AgxArmTestNode(Node):
         self.get_logger().info("=" * 60)
         self.get_logger().info("Available test categories:")
         self.get_logger().info("  [1-4]   Feedback topics")
-        self.get_logger().info("  [5-7]   Services (enable/home/teach)")
-        self.get_logger().info("  [8-13]  Arm control (move_j/p/l/c/js/mit)")
-        self.get_logger().info("  [14-17] Gripper control")
-        self.get_logger().info("  [18-22] Hand control")
+        self.get_logger().info("  [5-8]   Services (enable/home/teach)")
+        self.get_logger().info("  [9]     Unified control (joint_states)")
+        self.get_logger().info("  [10-15] Arm control (move_j/p/l/c/js/mit)")
+        self.get_logger().info("  [16-19] Gripper control")
+        self.get_logger().info("  [20-26] Hand control")
         self.get_logger().info("  [99]    Run all tests")
         self.get_logger().info("=" * 60)
 
@@ -300,6 +306,186 @@ class AgxArmTestNode(Node):
         self.get_logger().info("Exit teach mode command sent")
         return True
 
+    # ==================== 融合控制测试 ====================
+
+    def test_joint_states_control(self) -> bool:
+        """测试/control/joint_states融合控制话题 - 交互式输入
+        
+        可同时控制：
+        - 机械臂关节: 角度(rad)
+        - 夹爪: 宽度(m) [0, 0.1]
+        - 灵巧手: 位置 [0, 100]
+        """
+        self._log_section("Testing /control/joint_states (Unified Control)")
+        
+        self._spin_for(0.5)
+        
+        # 获取当前关节名
+        arm_joint_names = self._get_joint_names()
+        # 过滤出机械臂关节（不包含gripper和hand）
+        arm_only_names = [n for n in arm_joint_names if n not in ['gripper'] and not n.startswith(('l_f_', 'r_f_'))]
+        
+        print("\n" + "=" * 60)
+        print("  交互式融合控制 - 选择要控制的部件")
+        print("=" * 60)
+        print("[1] 控制机械臂关节")
+        print("[2] 控制夹爪")
+        print("[3] 控制左手")
+        print("[4] 控制右手")
+        print("[0] 取消")
+        print("-" * 60)
+        print("输入选项(可多选,用空格分隔,如: 1 2): ", end="")
+        
+        try:
+            choice_input = input().strip()
+            if choice_input == "0" or not choice_input:
+                self.get_logger().info("已取消控制")
+                return False
+            
+            choices = [int(c) for c in choice_input.split()]
+        except (ValueError, EOFError):
+            self.get_logger().warn("输入无效")
+            return False
+        
+        names = []
+        positions = []
+        
+        # [1] 机械臂关节控制
+        if 1 in choices:
+            print("\n" + "-" * 60)
+            print("  机械臂关节控制")
+            print("-" * 60)
+            print(f"可用关节: {arm_only_names}")
+            print("取值范围: 约 [-3.14, 3.14] rad (根据关节不同有差异)")
+            print("-" * 60)
+            
+            for joint_name in arm_only_names:
+                # 获取当前位置作为参考
+                current_pos = 0.0
+                if self.last_joint_states is not None:
+                    try:
+                        idx = list(self.last_joint_states.name).index(joint_name)
+                        current_pos = self.last_joint_states.position[idx]
+                    except (ValueError, IndexError):
+                        pass
+                
+                print(f"{joint_name} [当前: {current_pos:.4f} rad] (直接回车跳过): ", end="")
+                try:
+                    val_input = input().strip()
+                    if val_input:
+                        val = float(val_input)
+                        names.append(joint_name)
+                        positions.append(val)
+                except (ValueError, EOFError):
+                    print(f"  跳过 {joint_name}")
+        
+        # [2] 夹爪控制
+        if 2 in choices:
+            print("\n" + "-" * 60)
+            print("  夹爪控制")
+            print("-" * 60)
+            print("关节名: gripper")
+            print("取值范围: [0.0, 0.1] m (0=完全闭合, 0.1=完全张开)")
+            print("-" * 60)
+            
+            # 获取当前夹爪位置
+            current_width = 0.0
+            if self.last_joint_states is not None:
+                try:
+                    idx = list(self.last_joint_states.name).index("gripper")
+                    current_width = self.last_joint_states.position[idx]
+                except (ValueError, IndexError):
+                    pass
+            
+            print(f"gripper [当前: {current_width:.4f} m] (直接回车跳过): ", end="")
+            try:
+                val_input = input().strip()
+                if val_input:
+                    val = float(val_input)
+                    if 0.0 <= val <= 0.1:
+                        names.append("gripper")
+                        positions.append(val)
+                    else:
+                        print("  警告: 超出范围 [0.0, 0.1], 已跳过")
+            except (ValueError, EOFError):
+                print("  跳过 gripper")
+        
+        # [3] 左手控制
+        if 3 in choices:
+            self._input_hand_joints("左手", "l_f_", names, positions)
+        
+        # [4] 右手控制
+        if 4 in choices:
+            self._input_hand_joints("右手", "r_f_", names, positions)
+        
+        # 检查是否有任何控制命令
+        if not names:
+            self.get_logger().warn("没有输入任何控制值")
+            return False
+        
+        # 发布控制消息
+        msg = JointState()
+        msg.name = names
+        msg.position = positions
+        
+        print("\n" + "=" * 60)
+        self.get_logger().info("发送融合控制命令:")
+        for name, pos in zip(names, positions):
+            self.get_logger().info(f"  {name}: {pos:.4f}")
+        print("=" * 60)
+        
+        self.joint_states_pub.publish(msg)
+        
+        time.sleep(2.0)
+        return True
+
+    def _input_hand_joints(self, hand_name: str, prefix: str, names: list, positions: list):
+        """辅助方法: 输入灵巧手关节值
+        
+        Args:
+            hand_name: 显示名称 (左手/右手)
+            prefix: 关节名前缀 (l_f_ / r_f_)
+            names: 关节名列表 (会被修改)
+            positions: 位置列表 (会被修改)
+        """
+        hand_joints = [
+            (f"{prefix}joint1_1", "大拇指根部"),
+            (f"{prefix}joint1_2", "大拇指尖"),
+            (f"{prefix}joint2", "食指"),
+            (f"{prefix}joint3", "中指"),
+            (f"{prefix}joint4", "无名指"),
+            (f"{prefix}joint5", "小指"),
+        ]
+        
+        print("\n" + "-" * 60)
+        print(f"  {hand_name}控制")
+        print("-" * 60)
+        print("取值范围: [0, 100] (0=张开, 100=握紧)")
+        print("-" * 60)
+        
+        for joint_name, finger_desc in hand_joints:
+            # 获取当前位置
+            current_pos = 0
+            # if self.last_joint_states is not None:
+            #     try:
+            #         idx = list(self.last_joint_states.name).index(joint_name)
+            #         current_pos = self.last_joint_states.position[idx]
+            #     except (ValueError, IndexError):
+            #         pass
+            
+            print(f"{joint_name} ({finger_desc}) [当前: {current_pos}] (直接回车跳过): ", end="")
+            try:
+                val_input = input().strip()
+                if val_input:
+                    val = float(val_input)
+                    if 0 <= val <= 100:
+                        names.append(joint_name)
+                        positions.append(val)
+                    else:
+                        print(f"  警告: 超出范围 [0, 100], 已跳过")
+            except (ValueError, EOFError):
+                print(f"  跳过 {joint_name}")
+
     # ==================== 机械臂控制测试 ====================
 
     def test_move_j(self, joint_angles: list = None) -> bool:
@@ -424,7 +610,10 @@ class AgxArmTestNode(Node):
         return True
 
     def test_move_c(self) -> bool:
-        """测试move_c圆弧运动 (piper only)"""
+        """测试move_c圆弧运动 (piper only)
+        
+        使用PoseArray消息，包含3个Pose：起点、中点、终点
+        """
         self._log_section("Testing /control/move_c (Piper only)")
         
         self._spin_for(0.5)
@@ -435,34 +624,34 @@ class AgxArmTestNode(Node):
         
         current = self.last_end_pose.pose
         
-        # 创建三个点形成圆弧
-        start_pose = PoseStamped()
-        start_pose.pose.position.x = 0.2
-        start_pose.pose.position.y = 0.0
-        start_pose.pose.position.z = 0.3
-        start_pose.pose.orientation = current.orientation
+        # 创建三个点形成圆弧 (使用 PoseArray)
+        from geometry_msgs.msg import Pose
         
-        mid_pose = PoseStamped()
-        mid_pose.pose.position.x = 0.2
-        mid_pose.pose.position.y = 0.05
-        mid_pose.pose.position.z = 0.35
-        mid_pose.pose.orientation = current.orientation
+        start_pose = Pose()
+        start_pose.position.x = 0.2
+        start_pose.position.y = 0.0
+        start_pose.position.z = 0.3
+        start_pose.orientation = current.orientation
         
-        end_pose = PoseStamped()
-        end_pose.pose.position.x = 0.2
-        end_pose.pose.position.y = 0.0
-        end_pose.pose.position.z = 0.4
-        end_pose.pose.orientation = current.orientation
+        mid_pose = Pose()
+        mid_pose.position.x = 0.2
+        mid_pose.position.y = 0.05
+        mid_pose.position.z = 0.35
+        mid_pose.orientation = current.orientation
         
-        msg = TriplePose()
-        msg.start_pose = start_pose
-        msg.mid_pose = mid_pose
-        msg.end_pose = end_pose
+        end_pose = Pose()
+        end_pose.position.x = 0.2
+        end_pose.position.y = 0.0
+        end_pose.position.z = 0.4
+        end_pose.orientation = current.orientation
+        
+        msg = PoseArray()
+        msg.poses = [start_pose, mid_pose, end_pose]
         
         self.get_logger().info("Sending circular motion command")
-        self.get_logger().info(f"  Start: ({start_pose.pose.position.x}, {start_pose.pose.position.y}, {start_pose.pose.position.z})")
-        self.get_logger().info(f"  Mid:   ({mid_pose.pose.position.x}, {mid_pose.pose.position.y}, {mid_pose.pose.position.z})")
-        self.get_logger().info(f"  End:   ({end_pose.pose.position.x}, {end_pose.pose.position.y}, {end_pose.pose.position.z})")
+        self.get_logger().info(f"  Start: ({start_pose.position.x}, {start_pose.position.y}, {start_pose.position.z})")
+        self.get_logger().info(f"  Mid:   ({mid_pose.position.x}, {mid_pose.position.y}, {mid_pose.position.z})")
+        self.get_logger().info(f"  End:   ({end_pose.position.x}, {end_pose.position.y}, {end_pose.position.z})")
         self.move_c_pub.publish(msg)
         
         time.sleep(3.0)
@@ -492,25 +681,63 @@ class AgxArmTestNode(Node):
         time.sleep(2.0)
         return True
 
-    def test_move_mit(self, joint_angles: list = None) -> bool:
-        """测试MIT控制 (piper only)"""
+    def test_move_mit(
+        self,
+        joint_indices: list = None,
+        p_des: list = None,
+        v_des: list = None,
+        kp: list = None,
+        kd: list = None,
+        torque: list = None
+    ) -> bool:
+        """测试MIT控制 (piper only)
+        
+        MIT控制参数说明：
+        - joint_indices: 关节索引列表 (1-6)
+        - p_des: 目标位置列表 (rad), 范围: [-12.5, 12.5)
+        - v_des: 目标速度列表 (rad/s), 范围: [-45.0, 45.0)
+        - kp: 位置增益列表, 范围: [0.0, 500.0)
+        - kd: 速度增益列表, 范围: [-5.0, 5.0)
+        - torque: 力矩列表 (Nm), 范围: [-18.0, 18.0)
+        """
         self._log_section("Testing /control/move_mit (Piper only)")
         
         self._spin_for(0.5)
         
         joint_count = self._get_joint_count()
-        joint_names = self._get_joint_names()
         
-        if joint_angles is None:
-            joint_angles = [0.0, 0.2, -0.2, 0.0, -0.2, 0.0][:joint_count]
-            if joint_count > 6:
-                joint_angles.extend([0.0] * (joint_count - 6))
+        # 默认参数：对所有关节发送MIT命令
+        if joint_indices is None:
+            joint_indices = list(range(1, min(joint_count + 1, 7)))  # [1, 2, 3, 4, 5, 6]
         
-        msg = JointState()
-        msg.name = joint_names
-        msg.position = joint_angles
+        num_joints = len(joint_indices)
         
-        self.get_logger().info(f"MIT target angles: {joint_angles}")
+        if p_des is None:
+            p_des = [0.0] * num_joints
+        if v_des is None:
+            v_des = [0.0] * num_joints
+        if kp is None:
+            kp = [20.0] * num_joints  # 适中的位置增益
+        if kd is None:
+            kd = [1.0] * num_joints   # 适中的速度增益
+        if torque is None:
+            torque = [0.0] * num_joints
+        
+        msg = MoveMITMsg()
+        msg.joint_index = joint_indices
+        msg.p_des = p_des
+        msg.v_des = v_des
+        msg.kp = kp
+        msg.kd = kd
+        msg.torque = torque
+        
+        self.get_logger().info(f"MIT control command:")
+        self.get_logger().info(f"  joint_index: {joint_indices}")
+        self.get_logger().info(f"  p_des: {p_des}")
+        self.get_logger().info(f"  v_des: {v_des}")
+        self.get_logger().info(f"  kp: {kp}")
+        self.get_logger().info(f"  kd: {kd}")
+        self.get_logger().info(f"  torque: {torque}")
         self.move_mit_pub.publish(msg)
         
         time.sleep(2.0)
@@ -850,26 +1077,28 @@ class AgxArmTestNode(Node):
     6.  Disable arm
     7.  Move to home
     8.  Exit teach mode
+  [Unified Control]
+    9.  Test joint_states control (arm + gripper + hand)
   [Arm Control]
-    9.  Test move_j (joint control)
-    10. Test move_p (end pose control)
-    11. Test move_l (linear motion, piper)
-    12. Test move_c (circular motion, piper)
-    13. Test move_js (joint space, piper)
-    14. Test move_mit (MIT control, piper)
+    10. Test move_j (joint control)
+    11. Test move_p (end pose control)
+    12. Test move_l (linear motion, piper)
+    13. Test move_c (circular motion, piper)
+    14. Test move_js (joint space, piper)
+    15. Test move_mit (MIT control, piper)
   [Gripper Control]
-    15. Test gripper status
-    16. Gripper open
-    17. Gripper close
-    18. Gripper move (custom width)
+    16. Test gripper status
+    17. Gripper open
+    18. Gripper close
+    19. Gripper move (custom width)
   [Hand Control]
-    19. Test hand status
-    20. Hand open all
-    21. Hand close all
-    22. Hand position control
-    23. Hand speed control
-    24. Hand current control
-    25. Hand position+time control
+    20. Test hand status
+    21. Hand open all
+    22. Hand close all
+    23. Hand position control
+    24. Hand speed control
+    25. Hand current control
+    26. Hand position+time control
   [Batch Tests]
     99. Run ALL tests
 
@@ -902,61 +1131,65 @@ class AgxArmTestNode(Node):
                 elif choice == "8":
                     self.test_exit_teach_mode()
                 
-                # Arm control tests
+                # Unified control test
                 elif choice == "9":
-                    self.test_move_j()
+                    self.test_joint_states_control()
+                
+                # Arm control tests
                 elif choice == "10":
-                    self.test_move_p()
+                    self.test_move_j()
                 elif choice == "11":
-                    self.test_move_l()
+                    self.test_move_p()
                 elif choice == "12":
-                    self.test_move_c()
+                    self.test_move_l()
                 elif choice == "13":
-                    self.test_move_js()
+                    self.test_move_c()
                 elif choice == "14":
+                    self.test_move_js()
+                elif choice == "15":
                     self.test_move_mit()
                 
                 # Gripper tests
-                elif choice == "15":
-                    self.test_gripper_status()
                 elif choice == "16":
-                    self.test_gripper_open()
+                    self.test_gripper_status()
                 elif choice == "17":
-                    self.test_gripper_close()
+                    self.test_gripper_open()
                 elif choice == "18":
+                    self.test_gripper_close()
+                elif choice == "19":
                     width = float(input("Enter width (0-0.1 m): ") or "0.05")
                     force = float(input("Enter force (0-3 N): ") or "1.0")
                     self.test_gripper_move(width, force)
                 
                 # Hand tests
-                elif choice == "19":
-                    self.test_hand_status()
                 elif choice == "20":
-                    self.test_hand_open()
+                    self.test_hand_status()
                 elif choice == "21":
-                    self.test_hand_close()
+                    self.test_hand_open()
                 elif choice == "22":
+                    self.test_hand_close()
+                elif choice == "23":
                     pos = int(input("Enter position for all fingers (0-100): ") or "50")
                     self.test_hand_position({
                         "thumb_tip": pos, "thumb_base": pos,
                         "index_finger": pos, "middle_finger": pos,
                         "ring_finger": pos, "pinky_finger": pos,
                     })
-                elif choice == "23":
+                elif choice == "24":
                     spd = int(input("Enter speed for all fingers (-100 to 100): ") or "30")
                     self.test_hand_speed({
                         "thumb_tip": spd, "thumb_base": spd,
                         "index_finger": spd, "middle_finger": spd,
                         "ring_finger": spd, "pinky_finger": spd,
                     })
-                elif choice == "24":
+                elif choice == "25":
                     cur = int(input("Enter current for all fingers (-100 to 100): ") or "20")
                     self.test_hand_current({
                         "thumb_tip": cur, "thumb_base": cur,
                         "index_finger": cur, "middle_finger": cur,
                         "ring_finger": cur, "pinky_finger": cur,
                     })
-                elif choice == "25":
+                elif choice == "26":
                     pos = int(input("Enter position for all fingers (0-100): ") or "80")
                     t = int(input("Enter time for all fingers (x10ms, 0-255): ") or "100")
                     self.test_hand_position_time(

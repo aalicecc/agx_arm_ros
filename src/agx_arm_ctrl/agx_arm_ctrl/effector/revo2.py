@@ -191,37 +191,25 @@ class Revo2Wrapper:
         )
         return current
     
-    def _validate_position(self, value: int, name: str) -> None:
-        """Validate position parameter range"""
-        if not (self.POSITION_MIN <= value <= self.POSITION_MAX):
-            raise ValueError(
-                f"{name} position must be in range [{self.POSITION_MIN}, {self.POSITION_MAX}], "
-                f"current value: {value}"
-            )
-    
-    def _validate_speed(self, value: int, name: str) -> None:
-        """Validate speed parameter range"""
-        if not (self.SPEED_MIN <= value <= self.SPEED_MAX):
-            raise ValueError(
-                f"{name} speed must be in range [{self.SPEED_MIN}, {self.SPEED_MAX}], "
-                f"current value: {value}"
-            )
-    
-    def _validate_current(self, value: int, name: str) -> None:
-        """Validate current parameter range"""
-        if not (self.CURRENT_MIN <= value <= self.CURRENT_MAX):
-            raise ValueError(
-                f"{name} current must be in range [{self.CURRENT_MIN}, {self.CURRENT_MAX}], "
-                f"current value: {value}"
-            )
-    
-    def _validate_time(self, value: int, name: str) -> None:
-        """Validate time parameter range"""
-        if not (self.TIME_MIN <= value <= self.TIME_MAX):
-            raise ValueError(
-                f"{name} time must be in range [{self.TIME_MIN}, {self.TIME_MAX}], "
-                f"current value: {value}"
-            )
+    def _validate_finger_values(self, value_type: str, **fingers) -> None:
+        """Validate finger values for specified control type"""
+        ranges = {
+            'position': (self.POSITION_MIN, self.POSITION_MAX),
+            'speed': (self.SPEED_MIN, self.SPEED_MAX),
+            'current': (self.CURRENT_MIN, self.CURRENT_MAX),
+            'time': (self.TIME_MIN, self.TIME_MAX),
+        }
+        
+        if value_type not in ranges:
+            raise ValueError(f"Unknown value type: {value_type}")
+        
+        min_val, max_val = ranges[value_type]
+        for finger_name, value in fingers.items():
+            if not (min_val <= value <= max_val):
+                raise ValueError(
+                    f"{finger_name} {value_type} must be in range [{min_val}, {max_val}], "
+                    f"current value: {value}"
+                )
 
     def position_ctrl(
         self,
@@ -236,13 +224,14 @@ class Revo2Wrapper:
             return False
         
         # Parameter validation
-        self._validate_position(thumb_tip, 'Thumb tip')
-        self._validate_position(thumb_base, 'Thumb base')
-        self._validate_position(index_finger, 'Index finger')
-        self._validate_position(middle_finger, 'Middle finger')
-        self._validate_position(ring_finger, 'Ring finger')
-        self._validate_position(pinky_finger, 'Pinky finger')
-        
+        self._validate_finger_values('position',
+            thumb_tip=thumb_tip,
+            thumb_base=thumb_base,
+            index_finger=index_finger,
+            middle_finger=middle_finger,
+            ring_finger=ring_finger,
+            pinky_finger=pinky_finger
+        )
         try:
             self._effector.position_ctrl(
                 thumb_tip=thumb_tip,
@@ -270,12 +259,14 @@ class Revo2Wrapper:
             return False
         
         # Parameter validation
-        self._validate_speed(thumb_tip, 'Thumb tip')
-        self._validate_speed(thumb_base, 'Thumb base')
-        self._validate_speed(index_finger, 'Index finger')
-        self._validate_speed(middle_finger, 'Middle finger')
-        self._validate_speed(ring_finger, 'Ring finger')
-        self._validate_speed(pinky_finger, 'Pinky finger')
+        self._validate_finger_values('speed',
+            thumb_tip=thumb_tip,
+            thumb_base=thumb_base,
+            index_finger=index_finger,
+            middle_finger=middle_finger,
+            ring_finger=ring_finger,
+            pinky_finger=pinky_finger
+        )
         
         try:
             self._effector.speed_ctrl(
@@ -304,12 +295,14 @@ class Revo2Wrapper:
             return False
         
         # Parameter validation
-        self._validate_current(thumb_tip, 'Thumb tip')
-        self._validate_current(thumb_base, 'Thumb base')
-        self._validate_current(index_finger, 'Index finger')
-        self._validate_current(middle_finger, 'Middle finger')
-        self._validate_current(ring_finger, 'Ring finger')
-        self._validate_current(pinky_finger, 'Pinky finger')
+        self._validate_finger_values('current',
+            thumb_tip=thumb_tip,
+            thumb_base=thumb_base,
+            index_finger=index_finger,
+            middle_finger=middle_finger,
+            ring_finger=ring_finger,
+            pinky_finger=pinky_finger
+        )
         
         try:
             self._effector.current_ctrl(
@@ -341,21 +334,16 @@ class Revo2Wrapper:
         if mode not in ['pos', 'time']:
             raise ValueError(f"mode must be 'pos' or 'time', current value: {mode}")
         
-        # Select validation method based on mode
-        if mode == 'pos':
-            self._validate_position(thumb_tip, 'Thumb tip')
-            self._validate_position(thumb_base, 'Thumb base')
-            self._validate_position(index_finger, 'Index finger')
-            self._validate_position(middle_finger, 'Middle finger')
-            self._validate_position(ring_finger, 'Ring finger')
-            self._validate_position(pinky_finger, 'Pinky finger')
-        else:  # time mode
-            self._validate_time(thumb_tip, 'Thumb tip')
-            self._validate_time(thumb_base, 'Thumb base')
-            self._validate_time(index_finger, 'Index finger')
-            self._validate_time(middle_finger, 'Middle finger')
-            self._validate_time(ring_finger, 'Ring finger')
-            self._validate_time(pinky_finger, 'Pinky finger')
+        # Validate based on mode
+        validate_type = 'position' if mode == 'pos' else 'time'
+        self._validate_finger_values(validate_type,
+            thumb_tip=thumb_tip,
+            thumb_base=thumb_base,
+            index_finger=index_finger,
+            middle_finger=middle_finger,
+            ring_finger=ring_finger,
+            pinky_finger=pinky_finger
+        )
         
         # TODO:
         print(f"[Revo2Wrapper] Position/time hybrid control: {mode}")

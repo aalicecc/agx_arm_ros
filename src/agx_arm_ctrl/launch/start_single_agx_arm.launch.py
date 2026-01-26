@@ -109,6 +109,7 @@ def generate_launch_description():
             ('/feedback/hand_status', '/feedback/hand_status'),
 
             # control topics
+            ('/control/joint_states', '/control/joint_states'),
             ('/control/move_j', '/control/move_j'),
             ('/control/move_p', '/control/move_p'),
             ('/control/move_l', '/control/move_l'),
