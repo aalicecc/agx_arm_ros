@@ -466,12 +466,12 @@ class AgxArmTestNode(Node):
         for joint_name, finger_desc in hand_joints:
             # 获取当前位置
             current_pos = 0
-            # if self.last_joint_states is not None:
-            #     try:
-            #         idx = list(self.last_joint_states.name).index(joint_name)
-            #         current_pos = self.last_joint_states.position[idx]
-            #     except (ValueError, IndexError):
-            #         pass
+            if self.last_joint_states is not None:
+                try:
+                    idx = list(self.last_joint_states.name).index(joint_name)
+                    current_pos = self.last_joint_states.position[idx]
+                except (ValueError, IndexError):
+                    pass
             
             print(f"{joint_name} ({finger_desc}) [当前: {current_pos}] (直接回车跳过): ", end="")
             try:

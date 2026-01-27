@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*-coding:utf8-*-
-from typing import Optional, List, Literal, TYPE_CHECKING
+from typing import Optional, List, Literal, TYPE_CHECKING, Dict
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
@@ -192,7 +192,7 @@ class Revo2Wrapper:
         return current
     
     def _validate_finger_values(self, value_type: str, **fingers) -> None:
-        """Validate finger values for specified control type"""
+        """Validate finger values for specified control type (skip None values)"""
         ranges = {
             'position': (self.POSITION_MIN, self.POSITION_MAX),
             'speed': (self.SPEED_MIN, self.SPEED_MAX),
@@ -205,20 +205,38 @@ class Revo2Wrapper:
         
         min_val, max_val = ranges[value_type]
         for finger_name, value in fingers.items():
+            if value is None:
+                continue  # Skip validation for None values
             if not (min_val <= value <= max_val):
                 raise ValueError(
                     f"{finger_name} {value_type} must be in range [{min_val}, {max_val}], "
                     f"current value: {value}"
                 )
+    
+    def _fill_with_current_position(self, **fingers) -> Dict[str, int]:
+        """Fill None values with current finger positions"""
+        current_pos = self.get_finger_position()
+        result = {}
+        for finger_name in self.FINGER_NAMES:
+            value = fingers.get(finger_name)
+            if value is None:
+                # Use current position if not specified
+                if current_pos is not None:
+                    result[finger_name] = getattr(current_pos, finger_name, 0)
+                else:
+                    result[finger_name] = 0
+            else:
+                result[finger_name] = value
+        return result
 
     def position_ctrl(
         self,
-        thumb_tip: int = 0,
-        thumb_base: int = 0,
-        index_finger: int = 0,
-        middle_finger: int = 0,
-        ring_finger: int = 0,
-        pinky_finger: int = 0
+        thumb_tip: Optional[int] = None,
+        thumb_base: Optional[int] = None,
+        index_finger: Optional[int] = None,
+        middle_finger: Optional[int] = None,
+        ring_finger: Optional[int] = None,
+        pinky_finger: Optional[int] = None
     ) -> bool:
         if not self._initialized or self._effector is None:
             return False
@@ -232,15 +250,19 @@ class Revo2Wrapper:
             ring_finger=ring_finger,
             pinky_finger=pinky_finger
         )
+        
+        # Fill None values with current positions
+        filled = self._fill_with_current_position(
+            thumb_tip=thumb_tip,
+            thumb_base=thumb_base,
+            index_finger=index_finger,
+            middle_finger=middle_finger,
+            ring_finger=ring_finger,
+            pinky_finger=pinky_finger
+        )
+        
         try:
-            self._effector.position_ctrl(
-                thumb_tip=thumb_tip,
-                thumb_base=thumb_base,
-                index_finger=index_finger,
-                middle_finger=middle_finger,
-                ring_finger=ring_finger,
-                pinky_finger=pinky_finger
-            )
+            self._effector.position_ctrl(**filled)
             return True
         except Exception as e:
             print(f"[Revo2Wrapper] Position control failed: {e}")
@@ -248,17 +270,17 @@ class Revo2Wrapper:
     
     def speed_ctrl(
         self,
-        thumb_tip: int = 0,
-        thumb_base: int = 0,
-        index_finger: int = 0,
-        middle_finger: int = 0,
-        ring_finger: int = 0,
-        pinky_finger: int = 0
+        thumb_tip: Optional[int] = None,
+        thumb_base: Optional[int] = None,
+        index_finger: Optional[int] = None,
+        middle_finger: Optional[int] = None,
+        ring_finger: Optional[int] = None,
+        pinky_finger: Optional[int] = None
     ) -> bool:
         if not self._initialized or self._effector is None:
             return False
         
-        # Parameter validation
+        # Parameter validation (skips None values)
         self._validate_finger_values('speed',
             thumb_tip=thumb_tip,
             thumb_base=thumb_base,
@@ -268,15 +290,17 @@ class Revo2Wrapper:
             pinky_finger=pinky_finger
         )
         
+        filled = {
+            'thumb_tip': thumb_tip if thumb_tip is not None else 0,
+            'thumb_base': thumb_base if thumb_base is not None else 0,
+            'index_finger': index_finger if index_finger is not None else 0,
+            'middle_finger': middle_finger if middle_finger is not None else 0,
+            'ring_finger': ring_finger if ring_finger is not None else 0,
+            'pinky_finger': pinky_finger if pinky_finger is not None else 0,
+        }
+        
         try:
-            self._effector.speed_ctrl(
-                thumb_tip=thumb_tip,
-                thumb_base=thumb_base,
-                index_finger=index_finger,
-                middle_finger=middle_finger,
-                ring_finger=ring_finger,
-                pinky_finger=pinky_finger
-            )
+            self._effector.speed_ctrl(**filled)
             return True
         except Exception as e:
             print(f"[Revo2Wrapper] Speed control failed: {e}")
@@ -284,17 +308,17 @@ class Revo2Wrapper:
     
     def current_ctrl(
         self,
-        thumb_tip: int = 0,
-        thumb_base: int = 0,
-        index_finger: int = 0,
-        middle_finger: int = 0,
-        ring_finger: int = 0,
-        pinky_finger: int = 0
+        thumb_tip: Optional[int] = None,
+        thumb_base: Optional[int] = None,
+        index_finger: Optional[int] = None,
+        middle_finger: Optional[int] = None,
+        ring_finger: Optional[int] = None,
+        pinky_finger: Optional[int] = None
     ) -> bool:
         if not self._initialized or self._effector is None:
             return False
         
-        # Parameter validation
+        # Parameter validation (skips None values)
         self._validate_finger_values('current',
             thumb_tip=thumb_tip,
             thumb_base=thumb_base,
@@ -304,15 +328,17 @@ class Revo2Wrapper:
             pinky_finger=pinky_finger
         )
         
+        filled = {
+            'thumb_tip': thumb_tip if thumb_tip is not None else 0,
+            'thumb_base': thumb_base if thumb_base is not None else 0,
+            'index_finger': index_finger if index_finger is not None else 0,
+            'middle_finger': middle_finger if middle_finger is not None else 0,
+            'ring_finger': ring_finger if ring_finger is not None else 0,
+            'pinky_finger': pinky_finger if pinky_finger is not None else 0,
+        }
+        
         try:
-            self._effector.current_ctrl(
-                thumb_tip=thumb_tip,
-                thumb_base=thumb_base,
-                index_finger=index_finger,
-                middle_finger=middle_finger,
-                ring_finger=ring_finger,
-                pinky_finger=pinky_finger
-            )
+            self._effector.current_ctrl(**filled)
             return True
         except Exception as e:
             print(f"[Revo2Wrapper] Current control failed: {e}")
@@ -321,12 +347,12 @@ class Revo2Wrapper:
     def position_time_ctrl(
         self,
         mode: Literal['pos', 'time'] = 'pos',
-        thumb_tip: int = 0,
-        thumb_base: int = 0,
-        index_finger: int = 0,
-        middle_finger: int = 0,
-        ring_finger: int = 0,
-        pinky_finger: int = 0
+        thumb_tip: Optional[int] = None,
+        thumb_base: Optional[int] = None,
+        index_finger: Optional[int] = None,
+        middle_finger: Optional[int] = None,
+        ring_finger: Optional[int] = None,
+        pinky_finger: Optional[int] = None
     ) -> bool:
         if not self._initialized or self._effector is None:
             return False
@@ -334,7 +360,7 @@ class Revo2Wrapper:
         if mode not in ['pos', 'time']:
             raise ValueError(f"mode must be 'pos' or 'time', current value: {mode}")
         
-        # Validate based on mode
+        # Validate based on mode (skips None values)
         validate_type = 'position' if mode == 'pos' else 'time'
         self._validate_finger_values(validate_type,
             thumb_tip=thumb_tip,
@@ -345,13 +371,10 @@ class Revo2Wrapper:
             pinky_finger=pinky_finger
         )
         
-        # TODO:
-        print(f"[Revo2Wrapper] Position/time hybrid control: {mode}")
-        print(f"thumb_tip: {thumb_tip}, thumb_base: {thumb_base}, index_finger: {index_finger}, middle_finger: {middle_finger}, ring_finger: {ring_finger}, pinky_finger: {pinky_finger}")
-
-        try:
-            self._effector.position_time_ctrl(
-                mode=mode,
+        # Fill None values based on mode
+        if mode == 'pos':
+            # For position mode, use current positions
+            filled = self._fill_with_current_position(
                 thumb_tip=thumb_tip,
                 thumb_base=thumb_base,
                 index_finger=index_finger,
@@ -359,6 +382,19 @@ class Revo2Wrapper:
                 ring_finger=ring_finger,
                 pinky_finger=pinky_finger
             )
+        else:
+            # For time mode, use 0 as default
+            filled = {
+                'thumb_tip': thumb_tip if thumb_tip is not None else 0,
+                'thumb_base': thumb_base if thumb_base is not None else 0,
+                'index_finger': index_finger if index_finger is not None else 0,
+                'middle_finger': middle_finger if middle_finger is not None else 0,
+                'ring_finger': ring_finger if ring_finger is not None else 0,
+                'pinky_finger': pinky_finger if pinky_finger is not None else 0,
+            }
+
+        try:
+            self._effector.position_time_ctrl(mode=mode, **filled)
             return True
         except Exception as e:
             print(f"[Revo2Wrapper] Position/time hybrid control failed: {e}")
