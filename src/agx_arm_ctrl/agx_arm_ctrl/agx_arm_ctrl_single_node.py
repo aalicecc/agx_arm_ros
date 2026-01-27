@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*-coding:utf8-*-
 import time
+import re
 import rclpy
 import math
 import threading
-from typing import Optional
-from enum import IntEnum
+from typing import Optional, Tuple
 from pyAgxArm import create_agx_arm_config, AgxArmFactory
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
@@ -41,6 +41,7 @@ HAND_JOINT_TO_FINGER_ATTR = {
     for prefix in ("l_f_", "r_f_")
     for suffix, attr in FINGER_CONFIG
 }
+MIN_SEAMLESS_VERSION = (1, 8, 5)  # S-V1.8-5
 
 from typing import TYPE_CHECKING
 
@@ -73,7 +74,7 @@ class AgxArmRosNode(Node):
         ### variables
         self.enable_flag = False
 
-        ### publisher
+        ### publishers
         self._setup_publishers()
 
         ### subscribers
@@ -141,8 +142,10 @@ class AgxArmRosNode(Node):
             self.agx_arm.set_installation_pos(self.installation_pos)
             self.agx_arm.set_payload(self.payload)
             self.firmware = self.agx_arm.get_firmware()
-            if self.firmware and self.firmware['software_version'] < "S-V1.8-5":
-                self.is_switch_seamlessly = False
+            if self.firmware:
+                current_version = self._parse_firmware_version(self.firmware['software_version'])
+                if current_version < MIN_SEAMLESS_VERSION:
+                    self.is_switch_seamlessly = False
 
     def _init_effector(self):
         self.gripper: Optional[AgxGripperWrapper] = None
@@ -234,13 +237,22 @@ class AgxArmRosNode(Node):
     ### utility methods
 
     def _float_to_ros_time(self, timestamp: float) -> Time:
-        """将float时间戳转换为ROS Time消息"""
+        """Convert float timestamp to ROS Time message """
         ros_time = Time()
         ros_time.sec = int(timestamp)
         ros_time.nanosec = int((timestamp - ros_time.sec) * 1e9)
         return ros_time
 
-    def _safe_get_value(self, array, index, default=0.0):
+    def _parse_firmware_version(self, version_str: str) -> Tuple[int, int, int]:
+        if not version_str:
+            return (0, 0, 0)
+        
+        match = re.match(r'S-V(\d+)\.(\d+)-(\d+)', version_str)
+        if match:
+            return tuple(int(x) for x in match.groups())
+        return (0, 0, 0)
+
+    def _safe_get_value(self, array, index, default=0.0) -> float:
         if index >= len(array):
             return default
         value = array[index]
@@ -306,9 +318,8 @@ class AgxArmRosNode(Node):
             time.sleep(0.01)
         
         joints_status = self.agx_arm.get_joint_enable_status(255)
-        all_joints_in_target_status = joints_status if enable else not joints_status
         
-        if all_joints_in_target_status:
+        if joints_status:
             self.enable_flag = True if enable else False
             self.get_logger().info(f"All joints {action_name} status is {self.enable_flag}")
         else:
@@ -358,8 +369,8 @@ class AgxArmRosNode(Node):
             return []
         joint_names = LEFT_HAND_JOINT_NAMES if self.hand.is_hand_left() else RIGHT_HAND_JOINT_NAMES
         return [
-            (name, getattr(finger_pos, HAND_JOINT_TO_FINGER_ATTR[name], 0) * 1.0, 0.0, 0.0)
-            for name in joint_names
+            (joint_name, getattr(finger_pos, HAND_JOINT_TO_FINGER_ATTR[joint_name], 0) * 1.0, 0.0, 0.0)
+            for joint_name in joint_names
         ]
 
     def _publish_joint_states(self):
@@ -373,8 +384,8 @@ class AgxArmRosNode(Node):
         joints_data = []
         # arm 
         joints_data.extend(
-            (name, pos, 0.0, 0.0)
-            for name, pos in zip(self.arm_joint_names, joint_states.msg)
+            (joint_name, joint_state, 0.0, 0.0)
+            for joint_name, joint_state in zip(self.arm_joint_names, joint_states.msg)
         )
         # gripper
         joints_data.extend(self._get_gripper_joint_data())

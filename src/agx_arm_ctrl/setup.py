@@ -28,7 +28,6 @@ setup(
     entry_points={
         'console_scripts': [
             'agx_arm_ctrl_single = agx_arm_ctrl.agx_arm_ctrl_single_node:main',
-            'test_agx_arm_node = agx_arm_ctrl.test_agx_arm_node:main',
         ],
     },
 )
