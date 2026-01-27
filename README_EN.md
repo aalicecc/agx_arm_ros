@@ -1,278 +1,232 @@
 # AgileX Robotic Arm ROS2 Driver (Humble)
 
+[中文](./README_ZH.md)
+
 ## Overview
 
-The **AgileX Robotic Arm ROS2 Driver** package provides a complete ROS2 driver for AgileX robotic arms, supporting joint control, Cartesian space control, MoveIt integration, and various other functions.
+This driver package provides full ROS2 interface support for AgileX series robotic arms (Piper, Nero, etc.).
 
 ---
 
-## Getting Started
+## Quick Start
 
-### Dependencies
-
-#### System Dependencies
-
-   ```bash
-   # CAN tools
-   sudo apt update && sudo apt install can-utils ethtool
-
-   # ROS2 dependencies (for ROS2 driver)
-   sudo apt install ros-$ROS_DISTRO-ros2-control
-   sudo apt install ros-$ROS_DISTRO-ros2-controllers
-   sudo apt install ros-$ROS_DISTRO-controller-manager
-   sudo apt install ros-$ROS_DISTRO-topic-tools
-
-   # Optional dependencies
-   sudo apt install ros-$ROS_DISTRO-joint-state-publisher-gui
-   sudo apt install ros-$ROS_DISTRO-robot-state-publisher
-   sudo apt install ros-$ROS_DISTRO-xacro
-   ```
-
-#### Python Dependencies
-
-   ```bash
-   pip3 install python-can>=4.3.1
-
-   # For TracIK
-   git clone https://github.com/chenhaox/pytracik.git
-   cd pytracik
-   pip3 install -r requirements.txt
-   sudo apt install libboost-all-dev libeigen3-dev liborocos-kdl-dev libnlopt-dev libnlopt-cxx-dev
-   python3 setup_linux.py install --user
-   ```
-
-### Installation
-
-#### ROS2 Driver Installation
-
-0. First, finish all steps in [Dependencies](#dependencies)
-
-1. Create a ROS workspace and navigate to the src directory:
-   ```bash
-   mkdir -p ~/catkin_ws/src
-   cd ~/catkin_ws/src
-   ```
-
-2. Clone the required repositories:
-   ```bash
-   # TODO
-   git clone <repository-url> nero
-   ```
-
-3. Build the workspace:
-   ```bash
-   cd ../../
-   colcon build
-   source install/setup.bash
-   ```
-
-#### Python SDK Installation
-
-   ```bash
-   # TODO
-   pip3 install sdk
-   ```
-
-### Use CAN Module
-
-Note: The CAN module here only supports the robot arm's built-in CAN module, and does not support other CAN modules.
-
-Install CAN tools
-
-   ```bash
-   sudo apt update && sudo apt install can-utils ethtool
-   ```
-
-These two tools are used to configure the CAN module.
-
-If executing the bash script shows `ip: command not found`, install the `ip` command by running `sudo apt-get install iproute2`
-
-#### Find CAN Modules
-
-Run the following command:
-
-   ```bash
-   bash find_all_can_port.sh
-   ```
-
-Enter the password, and if the CAN module is inserted into the computer and detected, it will output something like:
-
-   ```bash
-   Both ethtool and can-utils are installed.
-   Interface can0 is connected to USB port 3-1.4:1.0
-   ```
-
-If there are multiple modules, the output will look like this:
-
-   ```bash
-   Both ethtool and can-utils are installed.
-   Interface can0 is connected to USB port 3-1.4:1.0
-   Interface can1 is connected to USB port 3-1.1:1.0
-   ```
-
-For each CAN module, there will be a corresponding output like `Interface can1 is connected to USB port 3-1.1:1.0`
-
-Where `can1` is the name of the CAN module detected by the system, and `3-1.1:1.0` is the USB port it is connected to.
-
-If the CAN module has already been activated with a different name, for example `can_arm`, the output will look like:
-
-   ```bash
-   Both ethtool and can-utils are installed.
-   Interface can_arm is connected to USB port 3-1.4:1.0
-   Interface can0 is connected to USB port 3-1.1:1.0
-   ```
-
-If no CAN module is detected, only the following will be output:
-
-   ```bash
-   Both ethtool and can-utils are installed.
-   ```
-
-#### Activate a Single CAN Module (use can_activate.sh script)
-
-There are two situations for activating a single CAN module: one is when only one CAN module is connected to the PC, and the other is when multiple CAN modules are inserted, but only one is activated.
-
-##### PC has only one USB-to-CAN module connected
-
-Simply execute:
-
-   ```bash
-   bash can_activate.sh can0 1000000
-   ```
-
-Here, `can0` can be replaced with any name, and `1000000` is the baud rate, which cannot be changed.
-
-##### PC has multiple USB-to-CAN modules connected, but only one module is activated at a time
-
-Note: This case applies when using both the robot arm and the chassis.
-
-(1) Find the USB hardware address of the CAN module. Unplug all CAN modules and plug in only the one connected to the robot arm, then execute:
-
-   ```bash
-   bash find_all_can_port.sh
-   ```
-
-Record the USB port value, for example, 3-1.4:1.0.
-
-(2) Activate the CAN device. Assuming the USB port value is 3-1.4:1.0, run:
-
-   ```bash
-   bash can_activate.sh can_arm 1000000 "3-1.4:1.0"
-   ```
-
-Explanation: **3-1.4:1.0 is the hardware-encoded USB port, and the CAN device inserted there is renamed as can_arm, with a baud rate of 1000000 and activated.**
-
-(3) Check if activation was successful by running `ifconfig` to see if `can_arm` appears. If it does, the CAN module is configured successfully.
-
-#### Activate Multiple CAN Modules Simultaneously (use can_muti_activate.sh script)
-
-First, determine how many official CAN modules are plugged into the PC (assumed here as 2).
-
-Note: **If the current computer has 5 CAN modules inserted, you can only activate the specified CAN module**
-
-##### Record the USB port hardware address of each CAN module
-
-For each CAN module, unplug and reinsert it while recording the corresponding USB port address.
-
-In the `can_muti_activate.sh` file, the `EXPECTED_CAN_COUNT` parameter should be set to the desired number of activated CAN modules (assumed here as 2).
-
-(1) Plug in one CAN module and run:
-
-   ```bash
-   bash find_all_can_port.sh
-   ```
-
-Record the `USB port` value, for example, `3-1.4:1.0`
-
-(2) Plug in the next CAN module. Ensure **it is not inserted into the same USB port as the previous one** and run:
-
-   ```bash
-   bash find_all_can_port.sh
-   ```
-
-Record the value of the second CAN module's `USB port`, for example `3-1.1:1.0`
-
-Note: **If not previously activated, the first module will default to "can0," and the second will be "can1." If previously activated, the names will be the ones used before.**
-
-##### Predefine USB ports, target interface names, and their bitrates
-
-Assume the recorded `USB port` values are `3-1.4:1.0` and `3-1.1:1.0`. Replace the values inside the brackets in `USB_PORTS["1-9:1.0"]="can_left:1000000"` with `3-1.4:1.0` and `3-1.1:1.0`.
-
-The final result is:
-
-   ```bash
-   USB_PORTS["3-1.4:1.0"]="can_left:1000000"
-   USB_PORTS["3-1.1:1.0"]="can_right:1000000"
-   ```
-
-Explanation: **3-1.4:1.0 is the hardware-encoded USB port, the CAN device inserted there is renamed to "can_left," with a baud rate of 1000000, and activated.**
-
-##### Activate multiple CAN modules
-
-Run the script:
+### 1. Install Dependencies
 
 ```bash
-bash can_muti_activate.sh
+# Python dependencies
+pip3 install python-can>=4.3.1 scipy numpy
+
+# CAN tools
+sudo apt update && sudo apt install can-utils ethtool
+
+# ROS2 dependencies
+sudo apt install ros-$ROS_DISTRO-ros2-control \
+                 ros-$ROS_DISTRO-ros2-controllers \
+                 ros-$ROS_DISTRO-controller-manager \
+                 ros-$ROS_DISTRO-topic-tools
+
+# Optional dependencies (for visualization and simulation)
+sudo apt install ros-$ROS_DISTRO-joint-state-publisher-gui \
+                 ros-$ROS_DISTRO-robot-state-publisher \
+                 ros-$ROS_DISTRO-xacro
 ```
 
-##### Check if multiple CAN modules were set up successfully
+### 2. Install Python SDK
 
-Run `ifconfig` to check if `can_left` and `can_right` are present.
+```bash
+git clone https://github.com/aalicecc/agx_arm_ros.git
+cd pyAgxArm
+pip3 install .
+```
+
+### 3. Install ROS2 Driver
+
+```bash
+# Create workspace
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws/src
+
+# Clone repository
+git clone http://10.20.0.138:8000/aalicecc/agx_arm_ros.git
+
+# Build
+cd ~/catkin_ws
+colcon build
+source install/setup.bash
+```
 
 ---
 
-## ROS2 Driver Usage
+## Usage
 
-### Launch Files
+### Activate CAN Module
 
-The ROS2 driver provides the following launch files:
+CAN module must be activated before use. See: [CAN Configuration Guide](./docs/CAN_USER.md)
 
-#### AGX Arm Control Launch
+### Launch Driver
+
 ```bash
 ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
-
-# TODO
-# Nero arm with test1 end effector, enable upper IK
-ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py arm_type:=nero end_effector_type:=test1 use_upper_ik:=true
 ```
 
-#### RViz Control
-```bash
-# For Nero arm
-ros2 launch nero_description gazebo.launch.py 
+### Launch Parameters
 
-# For Piper arm 
-ros2 launch piper_description gazebo.launch.py 
-```
+| Parameter | Default | Description | Options |
+|-----------|---------|-------------|---------|
+| `can_port` | `can0` | CAN port | - |
+| `arm_type` | `piper` | Arm model | `piper`, `piper_h`, `piper_l`, `piper_x`, `nero` |
+| `effector_type` | `none` | End-effector type | `none`, `agx_gripper`, `revo2` |
+| `auto_enable` | `True` | Auto enable on startup | `True`, `False` |
+| `installation_pos` | `horizontal` | Mount orientation (Piper series only) | `horizontal`, `left`, `right` |
+| `payload` | `empty` | Payload config (AgxGripper only) | `full`, `half`, `empty` |
+| `speed_percent` | `100` | Motion speed (%) | `0-100` |
+| `pub_rate` | `200` | Status publish rate (Hz) | - |
+| `enable_timeout` | `5.0` | Enable timeout (seconds) | - |
+| `tcp_offset` | `[0,0,0,0,0,0]` | TCP offset [x,y,z,rx,ry,rz] | - |
+| `log_level` | `info` | Log level | `debug`, `info`, `warn`, `error`, `fatal` |
 
-#### MoveIt Integration
-```bash
-# For Nero arm
-ros2 launch nero_moveit demo.launch.py joint_states:=/control/joint_states
+---
 
-# For Piper arm (when available)
-ros2 launch piper_moveit demo.launch.py joint_states:=/control/joint_states
-```
+## ROS2 Interface
 
-## ROS2 Topics and Services
+### Feedback Topics
 
-### Published Topics
-| Topic | Message Type | Description |
-|-------|-------------|-------------|
-| `/control/joint_states` | `sensor_msgs/JointState` | Joint position control |
-| `/control/end_pose` | `geometry_msgs/PoseStamped` | End-effector pose control |
+| Topic | Message Type | Description | Condition |
+|-------|--------------|-------------|-----------|
+| `/feedback/joint_states` | `sensor_msgs/JointState` | Joint states | Always available |
+| `/feedback/tcp_pose` | `geometry_msgs/PoseStamped` | TCP pose | Always available |
+| `/feedback/arm_status` | `agx_arm_msgs/AgxArmStatus` | Arm status | Always available |
+| `/feedback/arm_ctrl_states` | `sensor_msgs/JointState` | Joint control states | Piper series |
+| `/feedback/gripper_status` | `agx_arm_msgs/GripperStatus` | Gripper status | AgxGripper configured |
+| `/feedback/hand_status` | `agx_arm_msgs/HandStatus` | Dexterous hand status | Revo2 configured |
 
-### Subscribed Topics
-| Topic | Message Type | Description |
-|-------|-------------|-------------|
-| `/feedback/joint_states` | `sensor_msgs/JointState` | Joint state feedback |
-| `/feedback/end_pose` | `geometry_msgs/PoseStamped` | End-effector pose feedback |
+#### Joint States Details (`/feedback/joint_states`)
+
+This topic contains combined joint states for the arm and end-effector:
+
+**Arm Joints** (`joint1` ~ `joint6`)
+| Field | Description |
+|-------|-------------|
+| `position` | Joint angle (rad) |
+| `velocity` | 0.0 |
+| `effort` | 0.0 |
+
+**Gripper Joint** (`gripper`, requires `effector_type=agx_gripper`)
+| Field | Description |
+|-------|-------------|
+| `position` | Gripper width (m) |
+| `velocity` | 0.0 |
+| `effort` | 0.0 |
+
+**Dexterous Hand Joints** (requires `effector_type=revo2`)
+
+Joint naming convention: `{hand}_f_joint{finger}_[segment]`
+- `l` = left hand, `r` = right hand
+- `joint1` = thumb, `joint2` ~ `joint5` = index to pinky
+- `_1` = base, `_2` = tip (thumb only has two segments)
+
+Example: `l_f_joint1_1` represents left hand thumb base joint
+
+Full joint name list:
+- Left hand: `l_f_joint1_1`, `l_f_joint1_2`, `l_f_joint2`, `l_f_joint3`, `l_f_joint4`, `l_f_joint5`
+- Right hand: `r_f_joint1_1`, `r_f_joint1_2`, `r_f_joint2`, `r_f_joint3`, `r_f_joint4`, `r_f_joint5`
+
+### Control Topics
+
+| Topic | Message Type | Description | Condition |
+|-------|--------------|-------------|-----------|
+| `/control/joint_states` | `sensor_msgs/JointState` | Joint control (with end-effector) | Always available |
+| `/control/move_j` | `sensor_msgs/JointState` | Joint control motion | Always available |
+| `/control/move_p` | `geometry_msgs/PoseStamped` | Cartesian space motion | Always available |
+| `/control/move_l` | `geometry_msgs/PoseStamped` | Linear motion | Piper series |
+| `/control/move_c` | `geometry_msgs/PoseArray` | Circular motion | Piper series |
+| `/control/move_js` | `sensor_msgs/JointState` | MIT mode joint motion | Piper series |
+| `/control/move_mit` | `agx_arm_msgs/MoveMITMsg` | MIT torque control | Piper series |
+| `/control/gripper` | `agx_arm_msgs/GripperCmd` | Gripper control | AgxGripper configured |
+| `/control/hand` | `agx_arm_msgs/HandCmd` | Dexterous hand control | Revo2 configured |
+| `/control/hand_position_time` | `agx_arm_msgs/HandPositionTimeCmd` | Hand position-time control | Revo2 configured |
 
 ### Services
-| Service | Type | Description |
-|---------|------|-------------|
-| `/enable_agx_arm` | `std_srvs/SetBool` | Enable/disable robot arm |
-| `/move_home` | `std_srvs/Trigger` | Move to home position |
+
+| Service | Type | Description | Condition |
+|---------|------|-------------|-----------|
+| `/enable_agx_arm` | `std_srvs/SetBool` | Enable/disable arm | Always available |
+| `/move_home` | `std_srvs/Empty` | Move to home position | Always available |
+| `/exit_teach_mode` | `std_srvs/Empty` | Exit teach mode | Piper series |
+
+---
+
+## Control Examples
+
+> **Note**: Replace `AGX_ARM_ROS_PATH` with the actual path to the `agx_arm_ros` package.
+
+### Piper Arm
+
+```bash
+# Joint motion
+ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_j.yaml)" -1
+
+# Cartesian space motion
+ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_p.yaml)" -1
+
+# Linear motion
+ros2 topic pub /control/move_l geometry_msgs/msg/PoseStamped \
+  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_l.yaml)" -1
+
+# Circular motion (start → middle → end)
+ros2 topic pub /control/move_c geometry_msgs/msg/PoseArray \
+  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_c.yaml)" -1
+
+# Gripper control (width: 0.05m, force: 1.0N)
+ros2 topic pub /control/gripper agx_arm_msgs/msg/GripperCmd \
+  "{width: 0.05, force: 1.0}" -1
+```
+
+### Nero Arm
+
+```bash
+# Joint motion
+ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+  "$(cat AGX_ARM_ROS_PATH/test/nero/test_move_j.yaml)" -1
+
+# Cartesian space motion
+ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+  "$(cat AGX_ARM_ROS_PATH/test/nero/test_move_p.yaml)" -1
+```
+
+### Service Calls
+
+```bash
+# Enable arm
+ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: true}"
+
+# Disable arm
+ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: false}"
+
+# Move to home position
+ros2 service call /move_home std_srvs/srv/Empty
+
+# Exit teach mode (Piper series)
+ros2 service call /exit_teach_mode std_srvs/srv/Empty
+```
+
+### Status Subscription
+
+```bash
+# Joint states
+ros2 topic echo /feedback/joint_states
+
+# TCP pose
+ros2 topic echo /feedback/tcp_pose
+
+# Arm status
+ros2 topic echo /feedback/arm_status
+
+# Gripper status
+ros2 topic echo /feedback/gripper_status
+```
 
 ---
 
@@ -280,11 +234,12 @@ ros2 launch piper_moveit demo.launch.py joint_states:=/control/joint_states
 
 ### CAN Communication
 
-- **Always activate CAN modules before use**
-- **Use correct baud rate**: 1000000 bps
-- **Check CAN connection** if messages show `SendCanMessage failed`
+- CAN module **must be activated** before use
+- Baud rate: **1000000 bps**
+- If `SendCanMessage failed` error occurs, check CAN connection
 
-### CRITICAL SAFETY WARNINGS
-- **Always maintain a safe distance from the moving robot arm during operation.** Entering the robot's workspace while it is active can result in severe injury.
-- **Numerical solutions near kinematic singularities may cause sudden, large joint movements.** Maintain a safe distance as the arm's motion can become unpredictable.
-- **The high-speed response MIT mode (Command 0xAD) is highly dangerous.** Use with extreme caution and only when absolutely necessary. Always maintain a safe distance from the robot when this mode is active.
+### ⚠️ Safety Warnings
+
+- **Maintain safe distance**: Do not enter the arm's workspace during motion to avoid injury
+- **Singularity risk**: Joints may move suddenly and significantly near kinematic singularities
+- **MIT mode is dangerous**: High-speed response MIT mode is extremely hazardous, use with caution
