@@ -14,7 +14,7 @@ This driver package provides full ROS2 interface support for AgileX series robot
 
 ```bash
 # Python dependencies
-pip3 install python-can>=4.3.1 scipy numpy
+pip3 install "python-can>=4.3.1" scipy numpy
 
 # CAN tools
 sudo apt update && sudo apt install can-utils ethtool
