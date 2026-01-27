@@ -47,9 +47,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pyAgxArm.api.agx_arm_factory import PiperCanDefaultConfig
 
-class ControlMode(IntEnum):
-    TEACH = 0x02
-
 class MITModeLimit:
     P_DES_RANGE = (-12.5, 12.5)
     V_DES_RANGE = (-45.0, 45.0)
@@ -134,7 +131,7 @@ class AgxArmRosNode(Node):
         self.agx_arm = AgxArmFactory.create_arm(config)
         self.agx_arm.connect()
         self.is_piper = "piper" in self.arm_type
-        self.arm_joint_names = list(config["joint_limit"].keys())
+        self.arm_joint_names = list(config["joint_limits"].keys())
         self.arm_joint_count = self.agx_arm.joint_nums
         self.agx_arm.set_speed_percent(self.speed_percent)
         self.agx_arm.set_tcp_offset(self.tcp_offset)
@@ -264,7 +261,7 @@ class AgxArmRosNode(Node):
             return False
         if not self.is_switch_seamlessly:
             arm_status = self.agx_arm.get_arm_status()
-            if arm_status is not None and arm_status.msg.ctrl_mode == ControlMode.TEACH:
+            if arm_status is not None and arm_status.msg.ctrl_mode == self.agx_arm.ARM_STATUS.CtrlMode.TEACHING_MODE:
                 self.get_logger().warn("Agx_arm is in teach mode, cannot control")
                 return False
         return True
@@ -738,7 +735,7 @@ class AgxArmRosNode(Node):
             else:
                 if not self.is_switch_seamlessly:
                     arm_status = self.agx_arm.get_arm_status()
-                    if arm_status is not None and arm_status.msg.ctrl_mode == ControlMode.TEACH:
+                    if arm_status is not None and arm_status.msg.ctrl_mode == self.agx_arm.ARM_STATUS.CtrlMode.TEACHING_MODE:
                         self.get_logger().warn("Agx_arm is in teach mode, cannot move to home position")
                         return response
                     
@@ -754,7 +751,7 @@ class AgxArmRosNode(Node):
     def _exit_teach_mode_callback(self, request, response):
         try:
             arm_status = self.agx_arm.get_arm_status()
-            if arm_status is not None and arm_status.msg.ctrl_mode == ControlMode.TEACH:
+            if arm_status is not None and arm_status.msg.ctrl_mode == self.agx_arm.ARM_STATUS.CtrlMode.TEACHING_MODE:
                 if self.is_piper:
                     self.agx_arm.move_js([0] * self.arm_joint_count)
                     time.sleep(2)
