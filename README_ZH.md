@@ -14,7 +14,7 @@
 
 ```bash
 # Python 依赖
-pip3 install python-can>=4.3.1 scipy numpy
+pip3 install "python-can>=4.3.1" scipy numpy
 
 # CAN 工具
 sudo apt update && sudo apt install can-utils ethtool
