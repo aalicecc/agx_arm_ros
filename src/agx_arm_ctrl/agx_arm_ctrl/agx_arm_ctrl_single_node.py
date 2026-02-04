@@ -53,7 +53,7 @@ class MITModeLimit:
     V_DES_RANGE = (-45.0, 45.0)
     KP_RANGE = (0.0, 500.0)
     KD_RANGE = (-5.0, 5.0)
-    TORQUE_RANGE = (-18.0, 18.0)
+    TORQUE_RANGE = (-8.0, 8.0)
 
 class AgxArmRosNode(Node):
 
@@ -184,8 +184,8 @@ class AgxArmRosNode(Node):
                 HandStatus, "/feedback/hand_status", 1
             )
         if self.is_piper:
-            self.arm_ctrl_states_pub = self.create_publisher(
-                JointState, "/feedback/arm_ctrl_states", 1
+            self.master_joint_angles_pub = self.create_publisher(
+                JointState, "/feedback/master_joint_angles", 1
             )
             if self.gripper is not None:
                 self.gripper_status_pub = self.create_publisher(
@@ -259,7 +259,7 @@ class AgxArmRosNode(Node):
         return default if math.isnan(value) else value
 
     def _check_arm_ready(self) -> bool:
-        joint_states = self.agx_arm.get_joint_states()
+        joint_states = self.agx_arm.get_joint_angles()
         if joint_states is None or joint_states.hz <= 0:
             return False
         return True
@@ -346,7 +346,7 @@ class AgxArmRosNode(Node):
                 self._publish_arm_status()
                 self._publish_effector_status()
                 if self.is_piper:
-                    self._publish_arm_ctrl_states()
+                    self._publish_master_joint_angles()
             rate.sleep()
     
     ### publish methods
@@ -374,7 +374,7 @@ class AgxArmRosNode(Node):
         ]
 
     def _publish_joint_states(self):
-        joint_states = self.agx_arm.get_joint_states()
+        joint_states = self.agx_arm.get_joint_angles()
         if joint_states is None or joint_states.hz <= 0:
             return
 
@@ -443,18 +443,18 @@ class AgxArmRosNode(Node):
 
         self.arm_status_pub.publish(msg)
 
-    def _publish_arm_ctrl_states(self):
-        arm_ctrl_states = self.agx_arm.get_joint_ctrl_states()
-        if arm_ctrl_states is None:
+    def _publish_master_joint_angles(self):
+        master_joint_angles = self.agx_arm.get_master_joint_angles()
+        if master_joint_angles is None:
             return
 
         msg = JointState()
-        msg.header.stamp = self._float_to_ros_time(arm_ctrl_states.timestamp)
+        msg.header.stamp = self._float_to_ros_time(master_joint_angles.timestamp)
         msg.name = self.arm_joint_names
-        msg.position = arm_ctrl_states.msg
+        msg.position = master_joint_angles.msg
         msg.velocity = [0.0] * self.arm_joint_count
         msg.effort = [0.0] * self.arm_joint_count
-        self.arm_ctrl_states_pub.publish(msg)
+        self.master_joint_angles_pub.publish(msg)
 
     def _publish_gripper_status(self):
         status = self.gripper.get_status()

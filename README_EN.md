@@ -1,6 +1,6 @@
 # AgileX Robotic Arm ROS2 Driver (Humble)
 
-[中文](./README_ZH.md)
+[中文](./README.md)
 
 ## Overview
 
@@ -25,7 +25,6 @@ sudo apt install ros-$ROS_DISTRO-ros2-control \
                  ros-$ROS_DISTRO-controller-manager \
                  ros-$ROS_DISTRO-topic-tools
 
-# Optional dependencies (for visualization and simulation)
 sudo apt install ros-$ROS_DISTRO-joint-state-publisher-gui \
                  ros-$ROS_DISTRO-robot-state-publisher \
                  ros-$ROS_DISTRO-xacro
@@ -96,7 +95,7 @@ ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
 | `/feedback/joint_states` | `sensor_msgs/JointState` | Joint states | Always available |
 | `/feedback/tcp_pose` | `geometry_msgs/PoseStamped` | TCP pose | Always available |
 | `/feedback/arm_status` | `agx_arm_msgs/AgxArmStatus` | Arm status | Always available |
-| `/feedback/arm_ctrl_states` | `sensor_msgs/JointState` | Joint control states | Piper series |
+| `/feedback/master_joint_angles` | `sensor_msgs/JointState` | Master joint angles | Piper series |
 | `/feedback/gripper_status` | `agx_arm_msgs/GripperStatus` | Gripper status | AgxGripper configured |
 | `/feedback/hand_status` | `agx_arm_msgs/HandStatus` | Dexterous hand status | Revo2 configured |
 

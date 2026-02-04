@@ -25,7 +25,6 @@ sudo apt install ros-$ROS_DISTRO-ros2-control \
                  ros-$ROS_DISTRO-controller-manager \
                  ros-$ROS_DISTRO-topic-tools
 
-# 可选依赖（用于可视化和仿真）
 sudo apt install ros-$ROS_DISTRO-joint-state-publisher-gui \
                  ros-$ROS_DISTRO-robot-state-publisher \
                  ros-$ROS_DISTRO-xacro
@@ -96,7 +95,7 @@ ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
 | `/feedback/joint_states` | `sensor_msgs/JointState` | 关节状态 | 始终可用 |
 | `/feedback/tcp_pose` | `geometry_msgs/PoseStamped` | TCP 位姿 | 始终可用 |
 | `/feedback/arm_status` | `agx_arm_msgs/AgxArmStatus` | 机械臂状态 | 始终可用 |
-| `/feedback/arm_ctrl_states` | `sensor_msgs/JointState` | 关节控制状态 | Piper 系列 |
+| `/feedback/master_joint_angles` | `sensor_msgs/JointState` | 主臂关节角度 | Piper 系列 |
 | `/feedback/gripper_status` | `agx_arm_msgs/GripperStatus` | 夹爪状态 | 配置 AgxGripper |
 | `/feedback/hand_status` | `agx_arm_msgs/HandStatus` | 灵巧手状态 | 配置 Revo2 |
 
