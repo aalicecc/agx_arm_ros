@@ -23,9 +23,8 @@ sudo apt update && sudo apt install can-utils ethtool
 sudo apt install ros-$ROS_DISTRO-ros2-control \
                  ros-$ROS_DISTRO-ros2-controllers \
                  ros-$ROS_DISTRO-controller-manager \
-                 ros-$ROS_DISTRO-topic-tools
-
-sudo apt install ros-$ROS_DISTRO-joint-state-publisher-gui \
+                 ros-$ROS_DISTRO-topic-tools \
+                 ros-$ROS_DISTRO-joint-state-publisher-gui \
                  ros-$ROS_DISTRO-robot-state-publisher \
                  ros-$ROS_DISTRO-xacro
 ```
@@ -33,12 +32,17 @@ sudo apt install ros-$ROS_DISTRO-joint-state-publisher-gui \
 ### 2. Install Python SDK
 
 ```bash
-git clone https://github.com/aalicecc/agx_arm_ros.git
+git clone https://github.com/agilexrobotics/pyAgxArm.git
 cd pyAgxArm
 pip3 install .
 ```
 
 ### 3. Install ROS2 Driver
+
+Check if you are in a virtual environment. If so, it is recommended to exit the virtual environment first.
+```bash
+which pip3
+```
 
 ```bash
 # Create workspace
@@ -46,7 +50,7 @@ mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws/src
 
 # Clone repository
-git clone http://10.20.0.138:8000/aalicecc/agx_arm_ros.git
+git clone https://github.com/aalicecc/agx_arm_ros.git
 
 # Build
 cd ~/catkin_ws
@@ -64,8 +68,27 @@ CAN module must be activated before use. See: [CAN Configuration Guide](./docs/C
 
 ### Launch Driver
 
+You can start the driver using a launch file or by running the node directly.
+
+> **Important: Read before launching**
+> The parameters in the following launch commands **must** be replaced according to your actual hardware configuration:
+> - **`can_port`**: The CAN port connected to the arm, e.g. `can0`.
+> - **`arm_type`**: The arm model, e.g. `piper`.
+> - **`effector_type`**: The end-effector type, e.g. `none` or `agx_gripper`.
+>
+> For full parameter descriptions, default values and options, see **[Launch Parameters](#launch-parameters)** below.
+
+
+**Using launch file:**
+
 ```bash
-ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
+ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py can_port:=can0 arm_type:=piper effector_type:=none
+```
+
+**Running node directly:**
+
+```bash
+ros2 run agx_arm_ctrl agx_arm_ctrl_single --ros-args -p can_port:=can0 -p arm_type:=piper -p effector_type:=none
 ```
 
 ### Launch Parameters
@@ -83,6 +106,86 @@ ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
 | `enable_timeout` | `5.0` | Enable timeout (seconds) | - |
 | `tcp_offset` | `[0,0,0,0,0,0]` | TCP offset [x,y,z,rx,ry,rz] | - |
 | `log_level` | `info` | Log level | `debug`, `info`, `warn`, `error`, `fatal` |
+
+---
+
+## Control Examples
+
+Open an additional terminal and run the following commands:
+
+```bash
+cd ~/catkin_ws
+source install/setup.bash
+cd src/agx_arm_ros
+```
+
+### Piper Arm
+
+```bash
+# Joint motion
+ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+  "$(cat test/piper/test_move_j.yaml)" -1
+
+# Point-to-point motion
+ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+  "$(cat test/piper/test_move_p.yaml)" -1
+
+# Linear motion
+ros2 topic pub /control/move_l geometry_msgs/msg/PoseStamped \
+  "$(cat test/piper/test_move_l.yaml)" -1
+
+# Circular motion (start → middle → end)
+ros2 topic pub /control/move_c geometry_msgs/msg/PoseArray \
+  "$(cat test/piper/test_move_c.yaml)" -1
+
+# Gripper control (width: 0.05m, force: 1.0N)
+ros2 topic pub /control/gripper agx_arm_msgs/msg/GripperCmd \
+  "{width: 0.05, force: 1.0}" -1
+```
+
+### Nero Arm
+
+```bash
+# Joint motion
+ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+  "$(cat test/nero/test_move_j.yaml)" -1
+
+# Point-to-point motion
+ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+  "$(cat test/nero/test_move_p.yaml)" -1
+```
+
+### Service Calls
+
+```bash
+# Enable arm
+ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: true}"
+
+# Disable arm
+ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: false}"
+
+# Move to home position
+ros2 service call /move_home std_srvs/srv/Empty
+
+# Exit teach mode (Piper series)
+ros2 service call /exit_teach_mode std_srvs/srv/Empty
+```
+
+### Status Subscription
+
+```bash
+# Joint states
+ros2 topic echo /feedback/joint_states
+
+# TCP pose
+ros2 topic echo /feedback/tcp_pose
+
+# Arm status
+ros2 topic echo /feedback/arm_status
+
+# Gripper status
+ros2 topic echo /feedback/gripper_status
+```
 
 ---
 
@@ -136,7 +239,7 @@ Full joint name list:
 |-------|--------------|-------------|-----------|
 | `/control/joint_states` | `sensor_msgs/JointState` | Joint control (with end-effector) | Always available |
 | `/control/move_j` | `sensor_msgs/JointState` | Joint control motion | Always available |
-| `/control/move_p` | `geometry_msgs/PoseStamped` | Cartesian space motion | Always available |
+| `/control/move_p` | `geometry_msgs/PoseStamped` | Point-to-point motion | Always available |
 | `/control/move_l` | `geometry_msgs/PoseStamped` | Linear motion | Piper series |
 | `/control/move_c` | `geometry_msgs/PoseArray` | Circular motion | Piper series |
 | `/control/move_js` | `sensor_msgs/JointState` | MIT mode joint motion | Piper series |
@@ -152,80 +255,6 @@ Full joint name list:
 | `/enable_agx_arm` | `std_srvs/SetBool` | Enable/disable arm | Always available |
 | `/move_home` | `std_srvs/Empty` | Move to home position | Always available |
 | `/exit_teach_mode` | `std_srvs/Empty` | Exit teach mode | Piper series |
-
----
-
-## Control Examples
-
-> **Note**: Replace `AGX_ARM_ROS_PATH` with the actual path to the `agx_arm_ros` package.
-
-### Piper Arm
-
-```bash
-# Joint motion
-ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_j.yaml)" -1
-
-# Cartesian space motion
-ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_p.yaml)" -1
-
-# Linear motion
-ros2 topic pub /control/move_l geometry_msgs/msg/PoseStamped \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_l.yaml)" -1
-
-# Circular motion (start → middle → end)
-ros2 topic pub /control/move_c geometry_msgs/msg/PoseArray \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_c.yaml)" -1
-
-# Gripper control (width: 0.05m, force: 1.0N)
-ros2 topic pub /control/gripper agx_arm_msgs/msg/GripperCmd \
-  "{width: 0.05, force: 1.0}" -1
-```
-
-### Nero Arm
-
-```bash
-# Joint motion
-ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
-  "$(cat AGX_ARM_ROS_PATH/test/nero/test_move_j.yaml)" -1
-
-# Cartesian space motion
-ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
-  "$(cat AGX_ARM_ROS_PATH/test/nero/test_move_p.yaml)" -1
-```
-
-### Service Calls
-
-```bash
-# Enable arm
-ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: true}"
-
-# Disable arm
-ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: false}"
-
-# Move to home position
-ros2 service call /move_home std_srvs/srv/Empty
-
-# Exit teach mode (Piper series)
-ros2 service call /exit_teach_mode std_srvs/srv/Empty
-```
-
-### Status Subscription
-
-```bash
-# Joint states
-ros2 topic echo /feedback/joint_states
-
-# TCP pose
-ros2 topic echo /feedback/tcp_pose
-
-# Arm status
-ros2 topic echo /feedback/arm_status
-
-# Gripper status
-ros2 topic echo /feedback/gripper_status
-```
 
 ---
 

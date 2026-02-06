@@ -38,7 +38,7 @@ source ~/.bashrc
 
 ### 3.1 Start `agx_arm_ros`
 
-After configuring [agx_arm_ros](../../README_EN.md#Getting-Started):
+After configuring [agx_arm_ros](../../../README_EN.md#Getting-Started):
 
 ```bash
 cd ~/agx_arm_ros
@@ -63,7 +63,7 @@ source install/setup.bash
 ros2 launch agx_arm_moveit demo.launch.py joint_states:=/control/joint_states
 ```
 
-![agx_arm_moveit](../../asserts/pictures/piper_moveit.png)
+![agx_arm_moveit](../../../asserts/pictures/piper_moveit.png)
 
 You can control the robot arm by dragging the arrow at the end effector.
 

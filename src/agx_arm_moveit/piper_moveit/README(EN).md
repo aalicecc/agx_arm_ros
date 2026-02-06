@@ -75,7 +75,7 @@ ros2 launch piper_no_gripper_moveit demo.launch.py
 ros2 launch piper_with_gripper_moveit demo.launch.py
 ```
 
-![piper_moveit](../../asserts/pictures/piper_moveit.png)
+![piper_moveit](../../../asserts/pictures/piper_moveit.png)
 
 You can control the robot arm by dragging the arrow at the end effector.
 
@@ -87,7 +87,7 @@ After adjusting the position, click **Plan & Execute** under the **Motion Planni
 
 #### 4.1.1 Run Gazebo
 
-See [piper_gazebo](../piper_sim/README(EN).md#1-gazebo-simulation)
+See [piper_gazebo](../../agx_arm_sim//piper_sim/README(EN).md#1-gazebo-simulation)
 
 #### 4.1.2 Moveit Control
 
@@ -118,7 +118,7 @@ Same as [3.2 Moveit2 Control](#32-moveit2-control)
 
 #### 4.2.2 Run Mujoco
 
-See [piper_mujoco](../piper_sim/README(EN).md#2-mujoco-simulation)
+See [piper_mujoco](../../agx_arm_sim//piper_sim/README(EN).md#2-mujoco-simulation)
 
 Note: **You can close it using Ctrl+C+\\**
 

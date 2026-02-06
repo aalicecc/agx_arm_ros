@@ -23,9 +23,8 @@ sudo apt update && sudo apt install can-utils ethtool
 sudo apt install ros-$ROS_DISTRO-ros2-control \
                  ros-$ROS_DISTRO-ros2-controllers \
                  ros-$ROS_DISTRO-controller-manager \
-                 ros-$ROS_DISTRO-topic-tools
-
-sudo apt install ros-$ROS_DISTRO-joint-state-publisher-gui \
+                 ros-$ROS_DISTRO-topic-tools \
+                 ros-$ROS_DISTRO-joint-state-publisher-gui \
                  ros-$ROS_DISTRO-robot-state-publisher \
                  ros-$ROS_DISTRO-xacro
 ```
@@ -39,6 +38,11 @@ pip3 install .
 ```
 
 ### 3. 安装 ROS2 驱动
+
+检查是否在虚拟环境里，如果是，建议先退出虚拟环境。
+```bash
+which pip3
+```
 
 ```bash
 # 创建工作空间
@@ -64,8 +68,27 @@ source install/setup.bash
 
 ### 启动驱动
 
+您可以通过 launch 文件或直接运行节点来启动驱动。
+
+> **重要提示：启动前必读**
+> 以下启动命令中的参数**必须**根据您的实际硬件配置进行替换：
+> - **`can_port`**：机械臂连接的 CAN 端口，例如 `can0`。
+> - **`arm_type`**：机械臂的型号，例如 `piper`。
+> - **`effector_type`**：末端执行器类型，例如 `none` 或 `agx_gripper`。
+>
+> 所有参数的完整说明、默认值及可选值，请参阅下方的 **[启动参数](#启动参数)** 。
+
+
+**使用 launch 文件启动：**
+
 ```bash
-ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
+ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py can_port:=can0 arm_type:=piper effector_type:=none
+```
+
+**直接运行节点启动:**
+
+```bash
+ros2 run agx_arm_ctrl agx_arm_ctrl_single --ros-args -p can_port:=can0 -p arm_type:=piper -p effector_type:=none
 ```
 
 ### 启动参数
@@ -83,6 +106,86 @@ ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
 | `enable_timeout` | `5.0` | 使能超时 (秒) | - |
 | `tcp_offset` | `[0,0,0,0,0,0]` | TCP 偏移 [x,y,z,rx,ry,rz] | - |
 | `log_level` | `info` | 日志级别 | `debug`, `info`, `warn`, `error`, `fatal` |
+
+---
+
+## 控制示例
+
+额外启动一个终端,运行以下指令:
+
+```bash
+cd ~/catkin_ws
+source install/setup.bash
+cd src/agx_arm_ros
+```
+
+### Piper 机械臂
+
+```bash
+# 关节运动
+ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+  "$(cat test/piper/test_move_j.yaml)" -1
+
+# 点到点运动
+ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+  "$(cat test/piper/test_move_p.yaml)" -1
+
+# 直线运动
+ros2 topic pub /control/move_l geometry_msgs/msg/PoseStamped \
+  "$(cat test/piper/test_move_l.yaml)" -1
+
+# 圆弧运动（起点 → 中间点 → 终点）
+ros2 topic pub /control/move_c geometry_msgs/msg/PoseArray \
+  "$(cat test/piper/test_move_c.yaml)" -1
+
+# 夹爪控制（宽度: 0.05m, 力: 1.0N）
+ros2 topic pub /control/gripper agx_arm_msgs/msg/GripperCmd \
+  "{width: 0.05, force: 1.0}" -1
+```
+
+### Nero 机械臂
+
+```bash
+# 关节运动
+ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+  "$(cat test/nero/test_move_j.yaml)" -1
+
+# 点到点运动
+ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+  "$(cat test/nero/test_move_p.yaml)" -1
+```
+
+### 服务调用
+
+```bash
+# 使能机械臂
+ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: true}"
+
+# 失能机械臂
+ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: false}"
+
+# 回零位
+ros2 service call /move_home std_srvs/srv/Empty
+
+# 退出示教模式（Piper 系列）
+ros2 service call /exit_teach_mode std_srvs/srv/Empty
+```
+
+### 状态订阅
+
+```bash
+# 关节状态
+ros2 topic echo /feedback/joint_states
+
+# TCP 位姿
+ros2 topic echo /feedback/tcp_pose
+
+# 机械臂状态
+ros2 topic echo /feedback/arm_status
+
+# 夹爪状态
+ros2 topic echo /feedback/gripper_status
+```
 
 ---
 
@@ -136,7 +239,7 @@ ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
 |------|----------|------|----------|
 | `/control/joint_states` | `sensor_msgs/JointState` | 关节控制（含末端执行器） | 始终可用 |
 | `/control/move_j` | `sensor_msgs/JointState` | 关节控制运动 | 始终可用 |
-| `/control/move_p` | `geometry_msgs/PoseStamped` | 笛卡尔空间运动 | 始终可用 |
+| `/control/move_p` | `geometry_msgs/PoseStamped` | 点到点运动 | 始终可用 |
 | `/control/move_l` | `geometry_msgs/PoseStamped` | 直线运动 | Piper 系列 |
 | `/control/move_c` | `geometry_msgs/PoseArray` | 圆弧运动 | Piper 系列 |
 | `/control/move_js` | `sensor_msgs/JointState` | MIT 模式关节运动 | Piper 系列 |
@@ -152,80 +255,6 @@ ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py
 | `/enable_agx_arm` | `std_srvs/SetBool` | 使能/失能机械臂 | 始终可用 |
 | `/move_home` | `std_srvs/Empty` | 回零位 | 始终可用 |
 | `/exit_teach_mode` | `std_srvs/Empty` | 退出示教模式 | Piper 系列 |
-
----
-
-## 控制示例
-
-> **注意**：以下示例中的 `AGX_ARM_ROS_PATH` 需替换为实际的 `agx_arm_ros` 功能包路径。
-
-### Piper 机械臂
-
-```bash
-# 关节运动
-ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_j.yaml)" -1
-
-# 笛卡尔空间运动
-ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_p.yaml)" -1
-
-# 直线运动
-ros2 topic pub /control/move_l geometry_msgs/msg/PoseStamped \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_l.yaml)" -1
-
-# 圆弧运动（起点 → 中间点 → 终点）
-ros2 topic pub /control/move_c geometry_msgs/msg/PoseArray \
-  "$(cat AGX_ARM_ROS_PATH/test/piper/test_move_c.yaml)" -1
-
-# 夹爪控制（宽度: 0.05m, 力: 1.0N）
-ros2 topic pub /control/gripper agx_arm_msgs/msg/GripperCmd \
-  "{width: 0.05, force: 1.0}" -1
-```
-
-### Nero 机械臂
-
-```bash
-# 关节运动
-ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
-  "$(cat AGX_ARM_ROS_PATH/test/nero/test_move_j.yaml)" -1
-
-# 笛卡尔空间运动
-ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
-  "$(cat AGX_ARM_ROS_PATH/test/nero/test_move_p.yaml)" -1
-```
-
-### 服务调用
-
-```bash
-# 使能机械臂
-ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: true}"
-
-# 失能机械臂
-ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: false}"
-
-# 回零位
-ros2 service call /move_home std_srvs/srv/Empty
-
-# 退出示教模式（Piper 系列）
-ros2 service call /exit_teach_mode std_srvs/srv/Empty
-```
-
-### 状态订阅
-
-```bash
-# 关节状态
-ros2 topic echo /feedback/joint_states
-
-# TCP 位姿
-ros2 topic echo /feedback/tcp_pose
-
-# 机械臂状态
-ros2 topic echo /feedback/arm_status
-
-# 夹爪状态
-ros2 topic echo /feedback/gripper_status
-```
 
 ---
 

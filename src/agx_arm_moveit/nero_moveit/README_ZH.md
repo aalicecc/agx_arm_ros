@@ -38,7 +38,7 @@ source ~/.bashrc
 
 ### 3.1 开启agx_arm_ros
 
-按照[agx_arm_ros](../../README_ZH.md#快速开始)配置完后
+按照[agx_arm_ros](../../../README.md#快速开始)配置完后
 
 ```bash
 cd ~/agx_arm_ros
@@ -63,7 +63,7 @@ source install/setup.bash
 ros2 launch agx_arm_moveit demo.launch.py joint_states:=/control/joint_states
 ```
 
-![agx_arm_moveit](../../asserts/pictures/piper_moveit.png)
+![agx_arm_moveit](../../../asserts/pictures/piper_moveit.png)
 
 可以直接拖动机械臂末端的箭头控制机械臂
 

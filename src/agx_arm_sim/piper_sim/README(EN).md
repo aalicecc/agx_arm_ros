@@ -167,9 +167,9 @@ ros2 launch piper_description display_no_gripper_urdf.launch.py
 
 ### Control Parameter Introduction
 
-[Control parameters for the gripper version](../piper_description/mujoco_model/piper_description.xml)
+[Control parameters for the gripper version](../../robot_description/piper_description/mujoco_model/piper_description.xml)
 
-[Control parameters for the non-gripper version](../piper_description/mujoco_model/piper_no_gripper_description.xml)
+[Control parameters for the non-gripper version](../../robot_description/piper_description/mujoco_model/piper_no_gripper_description.xml)
 
 - `damping="100"` → Adjust joint damping
 - `kp="10000"` → Adjust joint control gain

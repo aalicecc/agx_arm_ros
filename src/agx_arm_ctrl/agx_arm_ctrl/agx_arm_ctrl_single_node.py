@@ -305,6 +305,21 @@ class AgxArmRosNode(Node):
         flange_pose = self.agx_arm.get_tcp2flange_pose(tcp_pose)
         return flange_pose
 
+    def _wait_motion_done(self, timeout: float = 5.0, poll_interval: float = 0.1) -> bool:
+        start_time = time.time()
+
+        while True:
+            status = self.agx_arm.get_arm_status()
+            if status is not None and getattr(status.msg, "motion_status", None) == 0:
+                return True
+            
+            if time.time() - start_time > timeout:
+                self.get_logger().error(
+                    f"Timeout waiting for arm to motion done after {timeout} seconds"
+                )
+                return False
+            time.sleep(poll_interval)
+
     def _enable_arm(self, enable: bool = True, timeout: float = 5.0) -> bool:
         start_time = time.time()
         action_name = "enable" if enable else "disable"
@@ -318,8 +333,9 @@ class AgxArmRosNode(Node):
             time.sleep(0.01)
         
         joints_status = self.agx_arm.get_joint_enable_status(255)
-        
-        if joints_status:
+        all_joints_in_target_status = joints_status if enable else not joints_status
+
+        if all_joints_in_target_status:
             self.enable_flag = True if enable else False
             self.get_logger().info(f"All joints {action_name} status is {self.enable_flag}")
         else:
@@ -726,14 +742,18 @@ class AgxArmRosNode(Node):
         try:
             if not self._check_arm_ready():
                 response.success = False
+                response.message = "Agx_arm is not connected"
                 self.get_logger().warn("Agx_arm is not connected, cannot set enable state")
             elif request.data:
                 response.success = True if self._enable_arm(True) else False
+                response.message = "Agx_arm enabled" if response.success else "Failed to enable Agx_arm"
             else:
                 response.success = True if self._enable_arm(False) else False
+                response.message = "Agx_arm disabled" if response.success else "Failed to disable Agx_arm"
             
         except Exception as e:
             response.success = False
+            response.message = f"Exception occurred: {str(e)}"
             self.get_logger().error(f"Failed to set enable state: {str(e)}")
         return response
 
@@ -754,7 +774,8 @@ class AgxArmRosNode(Node):
                     self.agx_arm.move_js([0] * self.arm_joint_count)
                 else:
                     self.agx_arm.move_j([0] * self.arm_joint_count)
-                self.get_logger().info("Agx_arm moved to home position successfully")
+                if self._wait_motion_done():
+                    self.get_logger().info("Agx_arm moved to home position successfully")
         except Exception as e:
             self.get_logger().error(f"Failed to move to home position: {str(e)}")
         return response
@@ -762,13 +783,20 @@ class AgxArmRosNode(Node):
     def _exit_teach_mode_callback(self, request, response):
         try:
             arm_status = self.agx_arm.get_arm_status()
+            if not self.is_piper:
+                self.get_logger().warn("exit teach mode just piper series supported")
+                return response
+
             if arm_status is not None and arm_status.msg.ctrl_mode == self.agx_arm.ARM_STATUS.CtrlMode.TEACHING_MODE:
-                if self.is_piper:
-                    self.agx_arm.move_js([0] * self.arm_joint_count)
-                    time.sleep(2)
+                self.agx_arm.move_js([0] * self.arm_joint_count)
+                time.sleep(2)
                 self.agx_arm.electronic_emergency_stop()
+                self.agx_arm.move_j([0] * self.arm_joint_count)
                 time.sleep(0.3)
                 self.agx_arm.reset()
+                time.sleep(0.3)
+                self._enable_arm(True)
+                self.agx_arm.move_j([0] * self.arm_joint_count)
                 self.get_logger().info("Exited teach mode successfully")
             else:
                 self.get_logger().info("Agx_arm is not in teach mode")
