@@ -12,6 +12,15 @@ sudo apt update && sudo apt install can-utils ethtool
 
 These two tools are used to configure the CAN module.
 
+When only a single CAN module is connected to the computer, you can **quickly activate** it by following these steps:
+
+Open a terminal window and execute the following commands in sequence:
+
+```bash
+cd ~/catkin_ws/src/agx_arm_ros/scripts 
+bash can_activate.sh
+```
+
 If you see`ip: command not found` when executing a bash script, install the `ip` command, typically with: 
 
 `sudo apt-get install iproute2`

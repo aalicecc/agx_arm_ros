@@ -48,7 +48,7 @@ class AgxGripperWrapper:
     # Gripper control parameter ranges
     WIDTH_MIN: float = 0.0      # minimum width, unit: m
     WIDTH_MAX: float = 0.1      # maximum width, unit: m
-    FORCE_MIN: float = 0.0      # minimum force, unit: N
+    FORCE_MIN: float = 0.5      # minimum force, unit: N
     FORCE_MAX: float = 3.0      # maximum force, unit: N
     
     def __init__(self, agx_arm):
@@ -62,7 +62,7 @@ class AgxGripperWrapper:
         
         try:
             self._effector = self._agx_arm.init_effector(
-                self._agx_arm.EFFECTOR.AGX_GRIPPER
+                self._agx_arm.OPTIONS.EFFECTOR.AGX_GRIPPER
             )
             self._initialized = True
             return True

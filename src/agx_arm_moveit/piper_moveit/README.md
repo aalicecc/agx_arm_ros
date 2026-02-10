@@ -75,7 +75,7 @@ ros2 launch piper_no_gripper_moveit demo.launch.py
 ros2 launch piper_with_gripper_moveit demo.launch.py
 ```
 
-![piper_moveit](../../asserts/pictures/piper_moveit.png)
+![piper_moveit](../../../asserts/pictures/piper_moveit.png)
 
 可以直接拖动机械臂末端的箭头控制机械臂
 
@@ -87,7 +87,7 @@ ros2 launch piper_with_gripper_moveit demo.launch.py
 
 #### 4.1.1 运行gazebo
 
-见 [piper_gazebo](../piper_sim/README.md#1-gazebo仿真)
+见 [piper_gazebo](../../agx_arm_sim/piper_sim/README.md#1-gazebo仿真)
 
 #### 5.1.2 moveit控制
 
@@ -118,7 +118,7 @@ ros2 launch piper_no_gripper_moveit piper_moveit.launch.py
 
 #### 5.2.2 运行mujoco
 
-见 [piper_mujoco](../piper_sim/README.md#2-mujoco仿真)
+见 [piper_mujoco](../../agx_arm_sim/piper_sim/README.md#2-mujoco仿真)
 
 注：**关闭可以使用ctrl+C+\\**
 

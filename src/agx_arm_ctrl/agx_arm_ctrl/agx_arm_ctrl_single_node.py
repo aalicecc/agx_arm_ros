@@ -15,7 +15,7 @@ from geometry_msgs.msg import Pose, PoseStamped, PoseArray
 from scipy.spatial.transform import Rotation as R
 
 from agx_arm_msgs.msg import (
-    AgxArmStatus, GripperStatus, GripperCmd, 
+    AgxArmStatus, GripperStatus,
     HandStatus, HandCmd, HandPositionTimeCmd,
     MoveMITMsg
 )
@@ -97,7 +97,7 @@ class AgxArmRosNode(Node):
         self.declare_parameter("pub_rate", 200)
         self.declare_parameter("enable_timeout", 5.0)
         self.declare_parameter("installation_pos", "horizontal")
-        self.declare_parameter("payload", "full")
+        self.declare_parameter("payload", "empty")
         self.declare_parameter("effector_type", "none")
         self.declare_parameter("tcp_offset", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -215,10 +215,6 @@ class AgxArmRosNode(Node):
             self.create_subscription(
                 MoveMITMsg, "/control/move_mit", self._move_mit_callback, 1
             )
-            if self.gripper is not None:
-                self.create_subscription(
-                    GripperCmd, "/control/gripper", self._gripper_cmd_callback, 1
-                )
         if self.hand is not None:
             self.create_subscription(
                 HandCmd, "/control/hand", self._hand_cmd_callback, 1
@@ -305,6 +301,21 @@ class AgxArmRosNode(Node):
         flange_pose = self.agx_arm.get_tcp2flange_pose(tcp_pose)
         return flange_pose
 
+    def _wait_motion_done(self, timeout: float = 5.0, poll_interval: float = 0.1) -> bool:
+        start_time = time.time()
+
+        while True:
+            status = self.agx_arm.get_arm_status()
+            if status is not None and getattr(status.msg, "motion_status", None) == 0:
+                return True
+            
+            if time.time() - start_time > timeout:
+                self.get_logger().error(
+                    f"Timeout waiting for arm to motion done after {timeout} seconds"
+                )
+                return False
+            time.sleep(poll_interval)
+
     def _enable_arm(self, enable: bool = True, timeout: float = 5.0) -> bool:
         start_time = time.time()
         action_name = "enable" if enable else "disable"
@@ -318,8 +329,9 @@ class AgxArmRosNode(Node):
             time.sleep(0.01)
         
         joints_status = self.agx_arm.get_joint_enable_status(255)
-        
-        if joints_status:
+        all_joints_in_target_status = joints_status if enable else not joints_status
+
+        if all_joints_in_target_status:
             self.enable_flag = True if enable else False
             self.get_logger().info(f"All joints {action_name} status is {self.enable_flag}")
         else:
@@ -358,7 +370,7 @@ class AgxArmRosNode(Node):
         if status is None:
             return []
         return [
-            (GRIPPER_JOINT_NAME, status.width, 0.0, 0.0)
+            (GRIPPER_JOINT_NAME, status.width, 0.0, status.force)
         ]
 
     def _get_hand_joint_data(self):
@@ -516,13 +528,24 @@ class AgxArmRosNode(Node):
             self.agx_arm.move_j(joints)
             self.is_mit_mode = False
 
-    def _control_gripper_joint(self, joint_pos):
+    def _control_gripper_joint(self, joint_pos, joint_effort):
         if GRIPPER_JOINT_NAME not in joint_pos:
             return
         if self.gripper is None:
             self.get_logger().warn("gripper not initialized")
-        else:
-            self.gripper.move(joint_pos[GRIPPER_JOINT_NAME])
+            return
+
+        width = joint_pos[GRIPPER_JOINT_NAME]
+        force = joint_effort.get(GRIPPER_JOINT_NAME, 0.0)
+
+        # Use default force if effort is 0 or not specified
+        if force == 0.0:
+            force = 1.0
+
+        try:
+            self.gripper.move(width=width, force=force)
+        except ValueError as e:
+            self.get_logger().warn(str(e))
 
     def _control_hand_joints(self, joint_pos):
         hand_joints = {
@@ -542,18 +565,25 @@ class AgxArmRosNode(Node):
             if name in HAND_JOINT_TO_FINGER_ATTR
         }
         if finger_kwargs:
-            self.hand.position_ctrl(**finger_kwargs)
+            try:
+                self.hand.position_ctrl(**finger_kwargs)
+            except ValueError as e:
+                self.get_logger().warn(str(e))
 
     def _joint_states_callback(self, msg: JointState):
         if not self._check_can_control():
             return
 
         joint_pos = {
-            name :self._safe_get_value(msg.position, idx)
+            name: self._safe_get_value(msg.position, idx)
+            for idx, name in enumerate(msg.name)
+        }
+        joint_effort = {
+            name: self._safe_get_value(msg.effort, idx)
             for idx, name in enumerate(msg.name)
         }
         self._control_arm_joints(joint_pos)
-        self._control_gripper_joint(joint_pos)
+        self._control_gripper_joint(joint_pos, joint_effort)
         self._control_hand_joints(joint_pos)
 
     def _move_j_callback(self, msg: JointState):
@@ -656,15 +686,6 @@ class AgxArmRosNode(Node):
 
     ### effector control callbacks
 
-    def _gripper_cmd_callback(self, msg: GripperCmd):
-        if self.gripper is None:
-            self.get_logger().warn("gripper not initialized")
-            return
-        try:
-            self.gripper.move(width=msg.width, force=msg.force)
-        except ValueError as e:
-            self.get_logger().error(f"gripper control param error: {e}")
-
     def _hand_position_time_cmd_callback(self, msg: HandPositionTimeCmd):
         if self.hand is None:
             self.get_logger().warn("revo2 hand not initialized")
@@ -726,14 +747,18 @@ class AgxArmRosNode(Node):
         try:
             if not self._check_arm_ready():
                 response.success = False
+                response.message = "Agx_arm is not connected"
                 self.get_logger().warn("Agx_arm is not connected, cannot set enable state")
             elif request.data:
                 response.success = True if self._enable_arm(True) else False
+                response.message = "Agx_arm enabled" if response.success else "Failed to enable Agx_arm"
             else:
                 response.success = True if self._enable_arm(False) else False
+                response.message = "Agx_arm disabled" if response.success else "Failed to disable Agx_arm"
             
         except Exception as e:
             response.success = False
+            response.message = f"Exception occurred: {str(e)}"
             self.get_logger().error(f"Failed to set enable state: {str(e)}")
         return response
 
@@ -754,7 +779,8 @@ class AgxArmRosNode(Node):
                     self.agx_arm.move_js([0] * self.arm_joint_count)
                 else:
                     self.agx_arm.move_j([0] * self.arm_joint_count)
-                self.get_logger().info("Agx_arm moved to home position successfully")
+                if self._wait_motion_done():
+                    self.get_logger().info("Agx_arm moved to home position successfully")
         except Exception as e:
             self.get_logger().error(f"Failed to move to home position: {str(e)}")
         return response
@@ -762,13 +788,20 @@ class AgxArmRosNode(Node):
     def _exit_teach_mode_callback(self, request, response):
         try:
             arm_status = self.agx_arm.get_arm_status()
+            if not self.is_piper:
+                self.get_logger().warn("exit teach mode just piper series supported")
+                return response
+
             if arm_status is not None and arm_status.msg.ctrl_mode == self.agx_arm.ARM_STATUS.CtrlMode.TEACHING_MODE:
-                if self.is_piper:
-                    self.agx_arm.move_js([0] * self.arm_joint_count)
-                    time.sleep(2)
+                self.agx_arm.move_js([0] * self.arm_joint_count)
+                time.sleep(2)
                 self.agx_arm.electronic_emergency_stop()
+                self.agx_arm.move_j([0] * self.arm_joint_count)
                 time.sleep(0.3)
                 self.agx_arm.reset()
+                time.sleep(0.3)
+                self._enable_arm(True)
+                self.agx_arm.move_j([0] * self.arm_joint_count)
                 self.get_logger().info("Exited teach mode successfully")
             else:
                 self.get_logger().info("Agx_arm is not in teach mode")

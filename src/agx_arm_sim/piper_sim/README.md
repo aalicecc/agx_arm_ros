@@ -167,9 +167,9 @@ ros2 launch piper_description display_no_gripper_urdf.launch.py
 
 #### 控制参数介绍
 
-[有夹爪控制参数](../piper_description/mujoco_model/piper_description.xml)
+[有夹爪控制参数](../../robot_description/piper_description/mujoco_model/piper_description.xml)
 
-[无夹爪控制参数](../piper_description/mujoco_model/piper_no_gripper_description.xml)
+[无夹爪控制参数](../../robot_description/piper_description/mujoco_model/piper_no_gripper_description.xml)
 
 - damping="100 更改关节阻尼
 
