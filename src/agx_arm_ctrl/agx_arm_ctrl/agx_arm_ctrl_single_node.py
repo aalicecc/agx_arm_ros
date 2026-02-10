@@ -15,7 +15,7 @@ from geometry_msgs.msg import Pose, PoseStamped, PoseArray
 from scipy.spatial.transform import Rotation as R
 
 from agx_arm_msgs.msg import (
-    AgxArmStatus, GripperStatus, GripperCmd, 
+    AgxArmStatus, GripperStatus,
     HandStatus, HandCmd, HandPositionTimeCmd,
     MoveMITMsg
 )
@@ -97,7 +97,7 @@ class AgxArmRosNode(Node):
         self.declare_parameter("pub_rate", 200)
         self.declare_parameter("enable_timeout", 5.0)
         self.declare_parameter("installation_pos", "horizontal")
-        self.declare_parameter("payload", "full")
+        self.declare_parameter("payload", "empty")
         self.declare_parameter("effector_type", "none")
         self.declare_parameter("tcp_offset", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -215,10 +215,6 @@ class AgxArmRosNode(Node):
             self.create_subscription(
                 MoveMITMsg, "/control/move_mit", self._move_mit_callback, 1
             )
-            if self.gripper is not None:
-                self.create_subscription(
-                    GripperCmd, "/control/gripper", self._gripper_cmd_callback, 1
-                )
         if self.hand is not None:
             self.create_subscription(
                 HandCmd, "/control/hand", self._hand_cmd_callback, 1
@@ -374,7 +370,7 @@ class AgxArmRosNode(Node):
         if status is None:
             return []
         return [
-            (GRIPPER_JOINT_NAME, status.width, 0.0, 0.0)
+            (GRIPPER_JOINT_NAME, status.width, 0.0, status.force)
         ]
 
     def _get_hand_joint_data(self):
@@ -532,13 +528,24 @@ class AgxArmRosNode(Node):
             self.agx_arm.move_j(joints)
             self.is_mit_mode = False
 
-    def _control_gripper_joint(self, joint_pos):
+    def _control_gripper_joint(self, joint_pos, joint_effort):
         if GRIPPER_JOINT_NAME not in joint_pos:
             return
         if self.gripper is None:
             self.get_logger().warn("gripper not initialized")
-        else:
-            self.gripper.move(joint_pos[GRIPPER_JOINT_NAME])
+            return
+
+        width = joint_pos[GRIPPER_JOINT_NAME]
+        force = joint_effort.get(GRIPPER_JOINT_NAME, 0.0)
+
+        # Use default force if effort is 0 or not specified
+        if force == 0.0:
+            force = 1.0
+
+        try:
+            self.gripper.move(width=width, force=force)
+        except ValueError as e:
+            self.get_logger().warn(str(e))
 
     def _control_hand_joints(self, joint_pos):
         hand_joints = {
@@ -558,18 +565,25 @@ class AgxArmRosNode(Node):
             if name in HAND_JOINT_TO_FINGER_ATTR
         }
         if finger_kwargs:
-            self.hand.position_ctrl(**finger_kwargs)
+            try:
+                self.hand.position_ctrl(**finger_kwargs)
+            except ValueError as e:
+                self.get_logger().warn(str(e))
 
     def _joint_states_callback(self, msg: JointState):
         if not self._check_can_control():
             return
 
         joint_pos = {
-            name :self._safe_get_value(msg.position, idx)
+            name: self._safe_get_value(msg.position, idx)
+            for idx, name in enumerate(msg.name)
+        }
+        joint_effort = {
+            name: self._safe_get_value(msg.effort, idx)
             for idx, name in enumerate(msg.name)
         }
         self._control_arm_joints(joint_pos)
-        self._control_gripper_joint(joint_pos)
+        self._control_gripper_joint(joint_pos, joint_effort)
         self._control_hand_joints(joint_pos)
 
     def _move_j_callback(self, msg: JointState):
@@ -671,15 +685,6 @@ class AgxArmRosNode(Node):
         self.is_mit_mode = True
 
     ### effector control callbacks
-
-    def _gripper_cmd_callback(self, msg: GripperCmd):
-        if self.gripper is None:
-            self.get_logger().warn("gripper not initialized")
-            return
-        try:
-            self.gripper.move(width=msg.width, force=msg.force)
-        except ValueError as e:
-            self.get_logger().error(f"gripper control param error: {e}")
 
     def _hand_position_time_cmd_callback(self, msg: HandPositionTimeCmd):
         if self.hand is None:

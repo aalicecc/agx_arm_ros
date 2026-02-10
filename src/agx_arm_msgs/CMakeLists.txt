@@ -16,7 +16,6 @@ find_package(geometry_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/AgxArmStatus.msg"
   "msg/GripperStatus.msg"
-  "msg/GripperCmd.msg"
   "msg/HandStatus.msg"
   "msg/HandCmd.msg"
   "msg/HandPositionTimeCmd.msg"

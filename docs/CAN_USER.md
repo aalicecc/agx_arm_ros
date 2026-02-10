@@ -12,6 +12,15 @@ sudo apt update && sudo apt install can-utils ethtool
 
 这两个工具用于配置 CAN 模块
 
+当电脑仅连接单个 CAN 模块时，可通过以下步骤**快速完成激活**：
+
+打开一个终端窗口，依次执行以下命令：
+
+```bash
+cd ~/catkin_ws/src/agx_arm_ros/scripts 
+bash can_activate.sh
+```
+
 如果执行bash脚本出现`ip: command not found`，请安装ip指令，一般是`sudo apt-get install iproute2`
 
 ## 1 寻找can模块

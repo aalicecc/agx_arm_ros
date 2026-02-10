@@ -92,7 +92,7 @@ class Revo2Wrapper:
         
         try:
             self._effector = self._agx_arm.init_effector(
-                self._agx_arm.EFFECTOR.REVO2
+                self._agx_arm.OPTIONS.EFFECTOR.REVO2
             )
             self._initialized = True
             return True
@@ -191,8 +191,8 @@ class Revo2Wrapper:
         )
         return current
     
-    def _validate_finger_values(self, value_type: str, **fingers) -> None:
-        """Validate finger values for specified control type (skip None values)"""
+    def _validate_finger_values(self, value_type: str, **fingers) -> Dict[str, Optional[int]]:
+        """Validate finger values for specified control type"""
         ranges = {
             'position': (self.POSITION_MIN, self.POSITION_MAX),
             'speed': (self.SPEED_MIN, self.SPEED_MAX),
@@ -204,15 +204,19 @@ class Revo2Wrapper:
             raise ValueError(f"Unknown value type: {value_type}")
         
         min_val, max_val = ranges[value_type]
+        result = {}
         for finger_name, value in fingers.items():
             if value is None:
+                result[finger_name] = None
                 continue  # Skip validation for None values
             if not (min_val <= value <= max_val):
                 raise ValueError(
                     f"{finger_name} {value_type} must be in range [{min_val}, {max_val}], "
                     f"current value: {value}"
                 )
-    
+            result[finger_name] = value
+        return result
+
     def _fill_with_current_position(self, **fingers) -> Dict[str, int]:
         """Fill None values with current finger positions"""
         current_pos = self.get_finger_position()
@@ -242,7 +246,7 @@ class Revo2Wrapper:
             return False
         
         # Parameter validation
-        self._validate_finger_values('position',
+        finger_values = self._validate_finger_values('position',
             thumb_tip=thumb_tip,
             thumb_base=thumb_base,
             index_finger=index_finger,
@@ -252,14 +256,7 @@ class Revo2Wrapper:
         )
         
         # Fill None values with current positions
-        filled = self._fill_with_current_position(
-            thumb_tip=thumb_tip,
-            thumb_base=thumb_base,
-            index_finger=index_finger,
-            middle_finger=middle_finger,
-            ring_finger=ring_finger,
-            pinky_finger=pinky_finger
-        )
+        filled = self._fill_with_current_position(**finger_values)
         
         try:
             self._effector.position_ctrl(**filled)
@@ -281,7 +278,7 @@ class Revo2Wrapper:
             return False
         
         # Parameter validation (skips None values)
-        self._validate_finger_values('speed',
+        finger_values = self._validate_finger_values('speed',
             thumb_tip=thumb_tip,
             thumb_base=thumb_base,
             index_finger=index_finger,
@@ -291,12 +288,8 @@ class Revo2Wrapper:
         )
         
         filled = {
-            'thumb_tip': thumb_tip if thumb_tip is not None else 0,
-            'thumb_base': thumb_base if thumb_base is not None else 0,
-            'index_finger': index_finger if index_finger is not None else 0,
-            'middle_finger': middle_finger if middle_finger is not None else 0,
-            'ring_finger': ring_finger if ring_finger is not None else 0,
-            'pinky_finger': pinky_finger if pinky_finger is not None else 0,
+            k: v if v is not None else 0
+            for k, v in finger_values.items()
         }
         
         try:
@@ -319,7 +312,7 @@ class Revo2Wrapper:
             return False
         
         # Parameter validation (skips None values)
-        self._validate_finger_values('current',
+        finger_values = self._validate_finger_values('current',
             thumb_tip=thumb_tip,
             thumb_base=thumb_base,
             index_finger=index_finger,
@@ -329,12 +322,8 @@ class Revo2Wrapper:
         )
         
         filled = {
-            'thumb_tip': thumb_tip if thumb_tip is not None else 0,
-            'thumb_base': thumb_base if thumb_base is not None else 0,
-            'index_finger': index_finger if index_finger is not None else 0,
-            'middle_finger': middle_finger if middle_finger is not None else 0,
-            'ring_finger': ring_finger if ring_finger is not None else 0,
-            'pinky_finger': pinky_finger if pinky_finger is not None else 0,
+            k: v if v is not None else 0
+            for k, v in finger_values.items()
         }
         
         try:
@@ -362,7 +351,7 @@ class Revo2Wrapper:
         
         # Validate based on mode (skips None values)
         validate_type = 'position' if mode == 'pos' else 'time'
-        self._validate_finger_values(validate_type,
+        finger_values = self._validate_finger_values(validate_type,
             thumb_tip=thumb_tip,
             thumb_base=thumb_base,
             index_finger=index_finger,
@@ -374,23 +363,12 @@ class Revo2Wrapper:
         # Fill None values based on mode
         if mode == 'pos':
             # For position mode, use current positions
-            filled = self._fill_with_current_position(
-                thumb_tip=thumb_tip,
-                thumb_base=thumb_base,
-                index_finger=index_finger,
-                middle_finger=middle_finger,
-                ring_finger=ring_finger,
-                pinky_finger=pinky_finger
-            )
+            filled = self._fill_with_current_position(**finger_values)
         else:
             # For time mode, use 0 as default
             filled = {
-                'thumb_tip': thumb_tip if thumb_tip is not None else 0,
-                'thumb_base': thumb_base if thumb_base is not None else 0,
-                'index_finger': index_finger if index_finger is not None else 0,
-                'middle_finger': middle_finger if middle_finger is not None else 0,
-                'ring_finger': ring_finger if ring_finger is not None else 0,
-                'pinky_finger': pinky_finger if pinky_finger is not None else 0,
+                k: v if v is not None else 0
+                for k, v in finger_values.items()
             }
 
         try:
