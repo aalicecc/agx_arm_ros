@@ -12,22 +12,29 @@ This driver package provides full ROS2 interface support for AgileX series robot
 
 ### 1. Install Dependencies
 
-```bash
-# Python dependencies
-pip3 install "python-can>=4.3.1" scipy numpy
+1. Python dependencies
 
-# CAN tools
-sudo apt update && sudo apt install can-utils ethtool
+    ```bash
+    pip3 install "python-can>=4.3.1" scipy numpy
+    ```
 
-# ROS2 dependencies
-sudo apt install ros-$ROS_DISTRO-ros2-control \
-                 ros-$ROS_DISTRO-ros2-controllers \
-                 ros-$ROS_DISTRO-controller-manager \
-                 ros-$ROS_DISTRO-topic-tools \
-                 ros-$ROS_DISTRO-joint-state-publisher-gui \
-                 ros-$ROS_DISTRO-robot-state-publisher \
-                 ros-$ROS_DISTRO-xacro
-```
+2. CAN tools
+
+    ```bash
+    sudo apt update && sudo apt install can-utils ethtool
+    ```
+
+3. ROS2 dependencies
+
+    ```bash
+    sudo apt install ros-$ROS_DISTRO-ros2-control \
+                    ros-$ROS_DISTRO-ros2-controllers \
+                    ros-$ROS_DISTRO-controller-manager \
+                    ros-$ROS_DISTRO-topic-tools \
+                    ros-$ROS_DISTRO-joint-state-publisher-gui \
+                    ros-$ROS_DISTRO-robot-state-publisher \
+                    ros-$ROS_DISTRO-xacro
+    ```
 
 ### 2. Install Python SDK
 
@@ -40,23 +47,31 @@ pip3 install .
 ### 3. Install ROS2 Driver
 
 Check if you are in a virtual environment. If so, it is recommended to exit the virtual environment first.
+
 ```bash
 which pip3
 ```
 
-```bash
-# Create workspace
-mkdir -p ~/catkin_ws/src
-cd ~/catkin_ws/src
+1. Create workspace
 
-# Clone repository
-git clone https://github.com/aalicecc/agx_arm_ros.git
+    ```bash
+    mkdir -p ~/catkin_ws/src
+    cd ~/catkin_ws/src
+    ```
 
-# Build
-cd ~/catkin_ws
-colcon build
-source install/setup.bash
-```
+2. Clone repository
+
+    ```bash
+    git clone https://github.com/aalicecc/agx_arm_ros.git
+    ```
+
+3. Build
+
+    ```bash
+    cd ~/catkin_ws
+    colcon build
+    source install/setup.bash
+    ```
 
 ---
 
@@ -75,7 +90,7 @@ You can start the driver using a launch file or by running the node directly.
 > - **`can_port`**: The CAN port connected to the arm, e.g. `can0`.
 > - **`arm_type`**: The arm model, e.g. `piper`.
 > - **`effector_type`**: The end-effector type, e.g. `none` or `agx_gripper`.
-> - **`tcp_offset`**: Tool Center Point (TCP) offset, e.g. [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] (Note: All values of this parameter must be floating-point numbers; for TCP offset configuration examples, see [TCP Offset Guide](./docs/tcp_offset/TCP_OFFSET.md)).
+> - **`tcp_offset`**: Tool Center Point (TCP) offset, e.g. [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] (Note: All values of this parameter must be floating-point numbers; for TCP offset configuration examples, see [TCP Offset Guide](./docs/tcp_offset/TCP_OFFSET_EN.md)).
 >
 > For full parameter descriptions, default values and options, see **[Launch Parameters](#launch-parameters)** below.
 
@@ -252,7 +267,9 @@ cd src/agx_arm_ros
     ros2 service call /exit_teach_mode std_srvs/srv/Empty
     ```
 
-    > **Note:** For Piper series robots with firmware version 1.8.5 or above, **seamless mode switching** is supported. The above exit teach mode service command is not required, as the system will automatically complete the mode switch.
+    > **⚠️ Important Safety Note:** 
+    > 1. After executing this command, the robotic arm will first perform a homing operation and then restart automatically; there is a risk of falling during this process. It is recommended to gently hold the robotic arm after homing to prevent damage from falling.
+    > 2. For Piper series robotic arms with firmware version 1.8.5 and above, the seamless mode switching feature is supported. There is no need to execute the above service command to exit teach mode, as the system will complete the mode switch automatically, avoiding the aforementioned fall risk.
 
 ### Status Subscription
 
@@ -274,10 +291,22 @@ cd src/agx_arm_ros
     ros2 topic echo /feedback/arm_status
     ```
 
-4. Gripper status
+4. Master joint angles(For master arm mode)
+
+    ```bash
+    ros2 topic echo /feedback/master_joint_angles
+    ```
+
+5. Gripper status
 
     ```bash
     ros2 topic echo /feedback/gripper_status
+    ```
+
+6. Dexterous hand status 
+
+    ```bash
+    ros2 topic echo /feedback/hand_status
     ```
 
 ---
