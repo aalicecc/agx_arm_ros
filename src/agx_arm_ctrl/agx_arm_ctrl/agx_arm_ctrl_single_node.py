@@ -306,7 +306,7 @@ class AgxArmRosNode(Node):
 
         while True:
             status = self.agx_arm.get_arm_status()
-            if status is not None and getattr(status.msg, "motion_status", None) == 0:
+            if status is not None and status.msg.motion_status == self.agx_arm.ARM_STATUS.MotionStatus.REACH_TARGET_POS_SUCCESSFULLY:
                 return True
             
             if time.time() - start_time > timeout:
@@ -799,7 +799,7 @@ class AgxArmRosNode(Node):
                 self.agx_arm.move_j([0] * self.arm_joint_count)
                 time.sleep(0.3)
                 self.agx_arm.reset()
-                time.sleep(0.3)
+                time.sleep(0.5)
                 self._enable_arm(True)
                 self.agx_arm.move_j([0] * self.arm_joint_count)
                 self.get_logger().info("Exited teach mode successfully")

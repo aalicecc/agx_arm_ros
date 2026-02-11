@@ -12,22 +12,29 @@
 
 ### 1. 安装依赖
 
-```bash
-# Python 依赖
-pip3 install "python-can>=4.3.1" scipy numpy
+1. Python 依赖
 
-# CAN 工具
-sudo apt update && sudo apt install can-utils ethtool
+    ```bash
+    pip3 install "python-can>=4.3.1" scipy numpy
+    ```
 
-# ROS2 依赖
-sudo apt install ros-$ROS_DISTRO-ros2-control \
-                 ros-$ROS_DISTRO-ros2-controllers \
-                 ros-$ROS_DISTRO-controller-manager \
-                 ros-$ROS_DISTRO-topic-tools \
-                 ros-$ROS_DISTRO-joint-state-publisher-gui \
-                 ros-$ROS_DISTRO-robot-state-publisher \
-                 ros-$ROS_DISTRO-xacro
-```
+2. CAN 工具
+
+    ```bash
+    sudo apt update && sudo apt install can-utils ethtool
+    ```
+
+3. ROS2 依赖
+
+    ```bash
+    sudo apt install ros-$ROS_DISTRO-ros2-control \
+                    ros-$ROS_DISTRO-ros2-controllers \
+                    ros-$ROS_DISTRO-controller-manager \
+                    ros-$ROS_DISTRO-topic-tools \
+                    ros-$ROS_DISTRO-joint-state-publisher-gui \
+                    ros-$ROS_DISTRO-robot-state-publisher \
+                    ros-$ROS_DISTRO-xacro
+    ```
 
 ### 2. 安装 Python SDK
 
@@ -45,19 +52,26 @@ pip3 install .
 which pip3
 ```
 
-```bash
-# 创建工作空间
-mkdir -p ~/catkin_ws/src
-cd ~/catkin_ws/src
+1. 创建工作空间
 
-# 克隆仓库
-git clone https://github.com/aalicecc/agx_arm_ros.git
+    ```bash
+    mkdir -p ~/catkin_ws/src
+    cd ~/catkin_ws/src
+    ```
 
-# 编译
-cd ~/catkin_ws
-colcon build
-source install/setup.bash
-```
+2. 克隆仓库
+
+    ```bash
+    git clone https://github.com/aalicecc/agx_arm_ros.git
+    ```
+
+3. 编译
+
+    ```bash
+    cd ~/catkin_ws
+    colcon build
+    source install/setup.bash
+    ```
 
 ---
 
@@ -253,7 +267,9 @@ cd src/agx_arm_ros
     ros2 service call /exit_teach_mode std_srvs/srv/Empty
     ```
 
-    > **注意：** Piper 系列机器人若固件版本为 1.8.5 及以上，已支持 **模式无缝切换** 功能，无需执行上述退出示教模式的服务指令，系统会自动完成模式切换。
+    > **⚠️ 重要安全提示:** 
+    > 1. 执行该指令后，机械臂会先执行回零位操作，随后自动重启；此过程中机械臂存在坠落风险，建议在回零位完成后用手轻扶机械臂，防止坠落损坏。
+    > 2. Piper 系列机器臂若固件版本为 1.8.5 及以上，已支持 模式无缝切换 功能，无需执行上述退出示教模式的服务指令，系统会自动完成模式切换，可规避上述坠落风险。
 
 ### 状态订阅
 
@@ -275,10 +291,22 @@ cd src/agx_arm_ros
     ros2 topic echo /feedback/arm_status
     ```
 
-4. 夹爪状态
+4. 主臂关节角度(主臂模式下使用)
+
+    ```bash
+    ros2 topic echo /feedback/master_joint_angles
+    ```
+
+5. 夹爪状态
 
     ```bash
     ros2 topic echo /feedback/gripper_status
+    ```
+
+6. 灵巧手状态
+
+    ```bash
+    ros2 topic echo /feedback/hand_status
     ```
 
 ---

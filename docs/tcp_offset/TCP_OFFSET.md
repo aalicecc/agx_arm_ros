@@ -1,7 +1,9 @@
 # TCP偏移设置
+
 本文档详细说明 `tcp_offset` 参数的定义、单位及通过RViz查看法兰盘中心坐标系的操作步骤，帮助您精准配置工具中心点偏移。
 
 ## 一、tcp_offset 参数定义
+
 `tcp_offset` 的6个数值依次对应：`[x, y, z, rx, ry, rz]`，各维度含义与单位如下：
 | 维度 | 单位 | 说明 |
 |------|------|------|
@@ -9,10 +11,13 @@
 | rx/ry/rz | 弧度 (rad) | 工具中心相对法兰盘中心的**姿态偏移** |
 
 ## 二、查看法兰盘中心坐标系（RViz可视化）
+
 通过以下步骤可在RViz中直观查看机械臂法兰盘中心的坐标系，为TCP偏移配置提供参考。
 
 ### 2.1 Piper 机械臂
+
 1. 打开终端窗口，执行以下命令启动RViz可视化：
+
     ```bash
     cd ~/catkin_ws
     source install/setup.bash
@@ -20,6 +25,7 @@
     ```
 
 2. 在 RViz 界面中操作：
+
     - 步骤 1：选择正确的坐标系（参考截图）
 
         ![piper_rviz_tcp_2](../../asserts/pictures/piper_rviz_tcp_2.png)
@@ -33,7 +39,9 @@
         ![piper_rviz_tcp_4](../../asserts/pictures/piper_rviz_tcp_4.png)
 
 ### 2.2 Nero 机械臂
+
 1. 打开终端窗口，执行以下命令启动 RViz 可视化：
+
     ```bash
     cd ~/catkin_ws
     source install/setup.bash
@@ -41,6 +49,7 @@
     ```
 
 2. 在 RViz 界面中操作：
+
     - 步骤 1：选择正确的坐标系（参考截图）
 
         ![nero_rviz_tcp_1](../../asserts/pictures/nero_rviz_tcp_1.png)
