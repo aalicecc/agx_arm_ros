@@ -1,6 +1,11 @@
-# AgileX 机械臂 ROS2 驱动 (Humble)
+# AgileX 机械臂 ROS2 驱动
 
 [English](./README_EN.md)
+
+|ROS |STATE|
+|---|---|
+|![humble](https://img.shields.io/badge/ros-humble-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
+|![jazzy](https://img.shields.io/badge/ros-jazzy-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
 
 ## 概述
 
@@ -10,16 +15,76 @@
 |---|---|
 |官方can模块的使用|[can_user](./docs/CAN_USER.md)|
 |TCP偏移设置|[tcp_offset](./docs/tcp_offset/TCP_OFFSET.md)|
-|Moveit|[Moveit](./src/agx_arm_moveit/README.md)|
 |Q&A|[Q&A](./docs/Q&A.md)|
 
 ---
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 安装 Python SDK
+
+```bash
+git clone https://github.com/agilexrobotics/pyAgxArm.git
+cd pyAgxArm
+```
+
+根据你的 ROS 版本选择安装命令：
+
+**Jazzy** 安装命令：
+
+```bash
+pip3 install . --break-system-packages
+```
+
+**Humble** 安装命令：
+
+```bash
+pip3 install .
+```
+
+### 2. 安装 ROS2 驱动
+
+1. 创建工作空间
+
+    ```bash
+    mkdir -p ~/catkin_ws/src
+    cd ~/catkin_ws/src
+    ```
+
+2. 克隆仓库
+
+    ```bash
+    git clone --recurse-submodules https://github.com/aalicecc/agx_arm_ros_test.git
+    ```
+
+    ```bash
+    cd agx_arm_ros/
+    git submodule update --remote --recursive
+    ```
+
+### 3. 安装依赖
+
+运行脚本一键安装所有依赖
+
+```bash
+cd ~/catkin_ws/src/agx_arm_ros/scripts/
+chmod +x agx_arm_install_deps.sh
+bash ./agx_arm_install_deps.sh
+```
+
+或者依次执行以下命令手动安装：
 
 1. Python 依赖
+
+    根据你的 ROS 版本选择安装命令：
+
+    **Jazzy** 安装命令:
+
+    ```bash
+    pip3 install python-can scipy numpy --break-system-packages
+    ```
+
+    **Humble** 安装命令:
 
     ```bash
     pip3 install python-can scipy numpy
@@ -34,24 +99,44 @@
 3. ROS2 依赖
 
     ```bash
-    sudo apt install ros-$ROS_DISTRO-ros2-control \
-                    ros-$ROS_DISTRO-ros2-controllers \
-                    ros-$ROS_DISTRO-controller-manager \
-                    ros-$ROS_DISTRO-topic-tools \
-                    ros-$ROS_DISTRO-joint-state-publisher-gui \
-                    ros-$ROS_DISTRO-robot-state-publisher \
-                    ros-$ROS_DISTRO-xacro
+    sudo apt install -y \
+        ros-$ROS_DISTRO-ros2-control \
+        ros-$ROS_DISTRO-ros2-controllers \
+        ros-$ROS_DISTRO-controller-manager \
+        ros-$ROS_DISTRO-topic-tools \
+        ros-$ROS_DISTRO-joint-state-publisher-gui \
+        ros-$ROS_DISTRO-robot-state-publisher \
+        ros-$ROS_DISTRO-xacro \
+        python3-colcon-common-extensions
     ```
 
-### 2. 安装 Python SDK
+4. Moveit
 
-```bash
-git clone https://github.com/agilexrobotics/pyAgxArm.git
-cd pyAgxArm
-pip3 install .
-```
+    使用 MoveIt 前，需先配置相关依赖。 具体步骤请参考：[agx_arm_moveit](./src/agx_arm_moveit/README.md)
+    
+    或者依次执行以下命令进行配置：
 
-### 3. 安装 ROS2 驱动
+    ```bash
+    sudo apt install ros-$ROS_DISTRO-moveit*
+    ```
+
+    ```bash
+    sudo apt-get install -y \
+        ros-$ROS_DISTRO-control* \
+        ros-$ROS_DISTRO-joint-trajectory-controller \
+        ros-$ROS_DISTRO-joint-state-* \
+        ros-$ROS_DISTRO-gripper-controllers \
+        ros-$ROS_DISTRO-trajectory-msgs
+    ```
+
+    若系统语言区域设置不为英文区域，须设置为英文区域
+
+    ```bash
+    echo "export LC_NUMERIC=en_US.UTF-8" >> ~/.bashrc
+    source ~/.bashrc
+    ```
+
+### 4.编译并Source工作空间
 
 检查是否在虚拟环境里，如果是，建议先退出虚拟环境。
 
@@ -59,26 +144,13 @@ pip3 install .
 which pip3
 ```
 
-1. 创建工作空间
+编译工作空间并加载环境配置：
 
-    ```bash
-    mkdir -p ~/catkin_ws/src
-    cd ~/catkin_ws/src
-    ```
-
-2. 克隆仓库
-
-    ```bash
-    git clone https://github.com/agilexrobotics/agx_arm_ros.git
-    ```
-
-3. 编译
-
-    ```bash
-    cd ~/catkin_ws
-    colcon build
-    source install/setup.bash
-    ```
+```bash
+cd ~/catkin_ws
+colcon build
+source install/setup.bash
+```
 
 ---
 
@@ -87,6 +159,15 @@ which pip3
 ### 激活 CAN 模块
 
 使用前需先激活 CAN 模块，详见：[CAN 配置指南](./docs/CAN_USER.md)
+
+当电脑仅连接单个 CAN 模块时，可通过以下步骤**快速完成激活**：
+
+打开一个终端窗口，执行以下命令：
+
+```bash
+cd ~/catkin_ws/src/agx_arm_ros/scripts 
+bash can_activate.sh
+```
 
 ### 启动驱动
 
@@ -97,7 +178,8 @@ which pip3
 > - **`can_port`**：机械臂连接的 CAN 端口，示例值 `can0`。
 > - **`arm_type`**：机械臂的型号，示例值 `piper`。
 > - **`effector_type`**：末端执行器类型，示例值 `none` 或 `agx_gripper`。
-> - **`tcp_offset`**：工具中心点（TCP）偏移量，示例值：[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]（注：该参数所有值均需为浮点数；关于 TCP 偏移实际配置示例，请参考 [TCP 设置详解](./docs/tcp_offset/TCP_OFFSET.md)）。
+> - **`tcp_offset`**：工具中心（TCP）相对法兰盘中心的偏移量，示例值：[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+>   - 注意 ：`tcp_offset` 所有值均需为浮点数；关于 TCP 偏移实际配置示例，请参考 [TCP 设置详解](./docs/tcp_offset/TCP_OFFSET.md)。
 >
 > 所有参数的完整说明、默认值及可选值，请参阅下方的 **[启动参数](#启动参数)** 。
 
@@ -120,7 +202,7 @@ ros2 run agx_arm_ctrl agx_arm_ctrl_single --ros-args -p can_port:=can0 -p arm_ty
 ros2 launch agx_arm_ctrl start_single_agx_arm_rviz.launch.py can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
-> **注意：** 该 launch 文件持续占用 `/joint_states` 话题，导致 [控制示例](#控制示例) 中的控制指令无法正常运行。如需执行控制指令，请先关闭此 launch 文件。
+> **注意：** `start_single_agx_arm_rviz.launch` 会持续占用 `/joint_states` 话题，导致 [控制示例](#控制示例) 中的控制指令无法正常运行。如需执行控制指令，请先关闭此 launch 文件。
 
 ### 启动参数
 
@@ -135,7 +217,7 @@ ros2 launch agx_arm_ctrl start_single_agx_arm_rviz.launch.py can_port:=can0 arm_
 | `speed_percent` | `100` | 运动速度 (%) | `0-100` |
 | `pub_rate` | `200` | 状态发布频率 (Hz) | - |
 | `enable_timeout` | `5.0` | 使能超时 (秒) | - |
-| `tcp_offset` | `[0.0,0.0,0.0,0.0,0.0,0.0]` | TCP 偏移 [x,y,z,rx,ry,rz] | - |
+| `tcp_offset` | `[0.0,0.0,0.0,0.0,0.0,0.0]` | 工具中心(TCP)相对法兰盘中心的偏移 [x,y,z,rx,ry,rz] | - |
 | `log_level` | `info` | 日志级别 | `debug`, `info`, `warn`, `error`, `fatal` |
 
 ---
@@ -372,6 +454,136 @@ cd src/agx_arm_ros
 - 左手：`l_f_joint1_1`, `l_f_joint1_2`, `l_f_joint2`, `l_f_joint3`, `l_f_joint4`, `l_f_joint5`
 - 右手：`r_f_joint1_1`, `r_f_joint1_2`, `r_f_joint2`, `r_f_joint3`, `r_f_joint4`, `r_f_joint5`
 
+#### `/feedback/arm_status` 详细说明
+
+消息类型：`agx_arm_msgs/AgxArmStatus`
+
+**消息字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `ctrl_mode` | `uint8` | 控制模式，见下表 |
+| `arm_status` | `uint8` | 机械臂状态，见下表 |
+| `mode_feedback` | `uint8` | 模式反馈，见下表 |
+| `teach_status` | `uint8` | 示教状态，见下表 |
+| `motion_status` | `uint8` | 运动状态：0=已到达目标位置，1=未到达目标位置 |
+| `trajectory_num` | `uint8` | 当前轨迹点序号（0~255，离线轨迹模式下反馈） |
+| `err_status` | `int64` | 错误状态码 |
+| `joint_1_angle_limit` ~ `joint_7_angle_limit` | `bool` | 关节1~7角度超限（true=异常，false=正常） |
+| `communication_status_joint_1` ~ `communication_status_joint_7` | `bool` | 关节1~7通信状态（true=异常，false=正常） |
+
+**控制模式 (`ctrl_mode`)：**
+
+| 值 | 说明 |
+|----|------|
+| 0 | 待机 |
+| 1 | CAN指令控制 |
+| 2 | 示教模式 |
+| 3 | 以太网控制 |
+| 4 | WiFi控制 |
+| 5 | 遥控模式 |
+| 6 | 联动示教输入 |
+| 7 | 离线轨迹模式 |
+| 8 | TCP控制 |
+
+**机械臂状态 (`arm_status`)：**
+
+| 值 | 说明 |
+|----|------|
+| 0 | 正常 |
+| 1 | 急停 |
+| 2 | 无解 |
+| 3 | 奇异点 |
+| 4 | 目标角度超限 |
+| 5 | 关节通信异常 |
+| 6 | 关节刹车未释放 |
+| 7 | 发生碰撞 |
+| 8 | 示教拖动超速 |
+| 9 | 关节状态异常 |
+| 10 | 其他异常 |
+| 11 | 示教记录中 |
+| 12 | 示教执行中 |
+| 13 | 示教暂停 |
+| 14 | 主控NTC过温 |
+| 15 | 释放电阻NTC过温 |
+
+**模式反馈 (`mode_feedback`)：**
+
+| 值 | 说明 |
+|----|------|
+| 0 | MOVE P |
+| 1 | MOVE J |
+| 2 | MOVE L |
+| 3 | MOVE C |
+| 4 | MOVE MIT |
+| 5 | MOVE CPV |
+
+**示教状态 (`teach_status`)：**
+
+| 值 | 说明 |
+|----|------|
+| 0 | 关闭 |
+| 1 | 开始示教记录（进入拖动示教） |
+| 2 | 结束示教记录（退出拖动示教） |
+| 3 | 执行示教轨迹 |
+| 4 | 暂停执行 |
+| 5 | 继续执行 |
+| 6 | 终止执行 |
+| 7 | 移动至轨迹起点 |
+
+#### `/feedback/gripper_status` 详细说明
+
+消息类型：`agx_arm_msgs/GripperStatus`
+
+**消息字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `header` | `std_msgs/Header` | 消息头 |
+| `width` | `float64` | 当前夹爪开口宽度（单位：米） |
+| `force` | `float64` | 当前夹持力（单位：牛顿） |
+| `voltage_too_low` | `bool` | 电压过低（true=异常，false=正常） |
+| `motor_overheating` | `bool` | 电机过热（true=异常，false=正常） |
+| `driver_overcurrent` | `bool` | 驱动器过流（true=异常，false=正常） |
+| `driver_overheating` | `bool` | 驱动器过热（true=异常，false=正常） |
+| `sensor_status` | `bool` | 传感器状态（true=异常，false=正常） |
+| `driver_error_status` | `bool` | 驱动器错误状态（true=异常，false=正常） |
+| `driver_enable_status` | `bool` | 驱动器使能状态（true=已使能，false=未使能） |
+| `homing_status` | `bool` | 回零/归零状态（true=已完成，false=未完成） |
+
+#### `/feedback/hand_status` 详细说明
+
+消息类型：`agx_arm_msgs/HandStatus`
+
+**消息字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `header` | `std_msgs/Header` | 消息头 |
+| `left_or_right` | `uint8` | 手部类型标识：1=左手，2=右手 |
+
+**手指位置字段（范围：[0, 100]，0=完全张开，100=完全弯曲）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `thumb_tip_pos` | `uint8` | 拇指指尖位置 |
+| `thumb_base_pos` | `uint8` | 拇指指根位置 |
+| `index_finger_pos` | `uint8` | 食指位置 |
+| `middle_finger_pos` | `uint8` | 中指位置 |
+| `ring_finger_pos` | `uint8` | 无名指位置 |
+| `pinky_finger_pos` | `uint8` | 小指位置 |
+
+**手指电机状态字段（0=空闲，1=运行中，2=堵转/卡死）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `thumb_tip_status` | `uint8` | 拇指指尖电机状态 |
+| `thumb_base_status` | `uint8` | 拇指指根电机状态 |
+| `index_finger_status` | `uint8` | 食指电机状态 |
+| `middle_finger_status` | `uint8` | 中指电机状态 |
+| `ring_finger_status` | `uint8` | 无名指电机状态 |
+| `pinky_finger_status` | `uint8` | 小指电机状态 |
+
 ### 控制话题
 
 | 话题                            | 消息类型                               | 说明           | 适用条件          |
@@ -434,6 +646,79 @@ ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
 | `l_f_joint4` / `r_f_joint4` | 无名指 | [0, 100] |
 | `l_f_joint5` / `r_f_joint5` | 小指 | [0, 100] |
 
+#### `/control/move_mit` 详细说明
+
+消息类型：`agx_arm_msgs/MoveMITMsg`
+
+**消息字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `joint_index` | `int32[]` | 要控制的关节索引数组 |
+| `p_des` | `float64[]` | 期望关节位置数组（单位：弧度） |
+| `v_des` | `float64[]` | 期望关节速度数组（单位：弧度/秒） |
+| `kp` | `float64[]` | 位置增益数组 |
+| `kd` | `float64[]` | 速度增益数组 |
+| `torque` | `float64[]` | 期望关节力矩数组（单位：牛·米，N·m） |
+
+> **注意：** 所有数组字段长度需与 `joint_index` 一致，支持同时控制多个关节。
+
+#### `/control/hand` 详细说明
+
+消息类型：`agx_arm_msgs/HandCmd`
+
+**消息字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `mode` | `string` | 控制模式：`position`（位置）/ `speed`（速度）/ `current`（电流） |
+
+**各手指目标值字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `thumb_tip` | `int8` | 拇指指尖目标值 |
+| `thumb_base` | `int8` | 拇指指根目标值 |
+| `index_finger` | `int8` | 食指目标值 |
+| `middle_finger` | `int8` | 中指目标值 |
+| `ring_finger` | `int8` | 无名指目标值 |
+| `pinky_finger` | `int8` | 小指目标值 |
+
+**不同模式下的数值范围：**
+
+| 模式 | 数值范围 | 说明 |
+|------|---------|------|
+| `position` | [0, 100] | 0=完全张开，100=完全弯曲 |
+| `speed` | [-100, 100] | 负值=张开方向，正值=弯曲方向 |
+| `current` | [-100, 100] | 负值=张开方向，正值=弯曲方向 |
+
+#### `/control/hand_position_time` 详细说明
+
+消息类型：`agx_arm_msgs/HandPositionTimeCmd`
+
+**消息字段说明：**
+
+**各手指目标位置字段（范围：[0, 100]，0=完全张开，100=完全弯曲）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `thumb_tip_pos` | `int8` | 拇指指尖位置 |
+| `thumb_base_pos` | `int8` | 拇指指根位置 |
+| `index_finger_pos` | `int8` | 食指位置 |
+| `middle_finger_pos` | `int8` | 中指位置 |
+| `ring_finger_pos` | `int8` | 无名指位置 |
+| `pinky_finger_pos` | `int8` | 小指位置 |
+
+**各手指到达时间字段（单位：10毫秒，范围：[0, 255]，例如：200 = 2秒）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `thumb_tip_time` | `uint8` | 拇指指尖到达时间 |
+| `thumb_base_time` | `uint8` | 拇指指根到达时间 |
+| `index_finger_time` | `uint8` | 食指到达时间 |
+| `middle_finger_time` | `uint8` | 中指到达时间 |
+| `ring_finger_time` | `uint8` | 无名指到达时间 |
+| `pinky_finger_time` | `uint8` | 小指到达时间 |
 
 ### 服务
 

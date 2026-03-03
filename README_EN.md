@@ -1,6 +1,11 @@
-# AgileX Robotic Arm ROS2 Driver (Humble)
+# AgileX Robotic Arm ROS2 Driver
 
 [中文](./README.md)
+
+|ROS |STATE|
+|---|---|
+|![humble](https://img.shields.io/badge/ros-humble-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
+|![jazzy](https://img.shields.io/badge/ros-jazzy-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
 
 ## Overview
 
@@ -10,16 +15,76 @@ This driver package provides full ROS2 interface support for AgileX series robot
 |---|---|
 | CAN module usage | [can_user](./docs/CAN_USER_EN.md) |
 | TCP Offset Configuration | [tcp_offset](./docs/tcp_offset/TCP_OFFSET_EN.md) |
-| Moveit | [Moveit](./src/agx_arm_moveit/README_EN.md) |
 | Q&A | [Q&A](./docs/Q&A.md) |
 
 ---
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Install Python SDK
+
+```bash
+git clone https://github.com/agilexrobotics/pyAgxArm.git
+cd pyAgxArm
+```
+
+Choose the installation command based on your ROS version:
+
+**Jazzy** installation command:
+
+```bash
+pip3 install . --break-system-packages
+```
+
+**Humble** installation command:
+
+```bash
+pip3 install .
+```
+
+### 2. Install ROS2 Driver
+
+1. Create workspace
+
+    ```bash
+    mkdir -p ~/catkin_ws/src
+    cd ~/catkin_ws/src
+    ```
+
+2. Clone repository
+
+    ```bash
+    git clone --recurse-submodules https://github.com/aalicecc/agx_arm_ros_test.git
+    ```
+
+    ```bash
+    cd agx_arm_ros/
+    git submodule update --remote --recursive
+    ```
+
+### 3. Install Dependencies
+
+Run the script to install all dependencies at once:
+
+```bash
+cd ~/catkin_ws/src/agx_arm_ros/scripts/
+chmod +x agx_arm_install_deps.sh
+bash ./agx_arm_install_deps.sh
+```
+
+Or install manually by executing the following commands in order:
 
 1. Python dependencies
+
+    Choose the installation command based on your ROS version:
+
+    **Jazzy** installation command:
+
+    ```bash
+    pip3 install python-can scipy numpy --break-system-packages
+    ```
+
+    **Humble** installation command:
 
     ```bash
     pip3 install python-can scipy numpy
@@ -34,24 +99,44 @@ This driver package provides full ROS2 interface support for AgileX series robot
 3. ROS2 dependencies
 
     ```bash
-    sudo apt install ros-$ROS_DISTRO-ros2-control \
-                    ros-$ROS_DISTRO-ros2-controllers \
-                    ros-$ROS_DISTRO-controller-manager \
-                    ros-$ROS_DISTRO-topic-tools \
-                    ros-$ROS_DISTRO-joint-state-publisher-gui \
-                    ros-$ROS_DISTRO-robot-state-publisher \
-                    ros-$ROS_DISTRO-xacro
+    sudo apt install -y \
+        ros-$ROS_DISTRO-ros2-control \
+        ros-$ROS_DISTRO-ros2-controllers \
+        ros-$ROS_DISTRO-controller-manager \
+        ros-$ROS_DISTRO-topic-tools \
+        ros-$ROS_DISTRO-joint-state-publisher-gui \
+        ros-$ROS_DISTRO-robot-state-publisher \
+        ros-$ROS_DISTRO-xacro \
+        python3-colcon-common-extensions
     ```
 
-### 2. Install Python SDK
+4. MoveIt
 
-```bash
-git clone https://github.com/agilexrobotics/pyAgxArm.git
-cd pyAgxArm
-pip3 install .
-```
+    Before using MoveIt, you need to configure the related dependencies. For detailed steps, please refer to: [agx_arm_moveit](./src/agx_arm_moveit/README_EN.md)
+    
+    Or execute the following commands in order:
 
-### 3. Install ROS2 Driver
+    ```bash
+    sudo apt install ros-$ROS_DISTRO-moveit*
+    ```
+
+    ```bash
+    sudo apt-get install -y \
+        ros-$ROS_DISTRO-control* \
+        ros-$ROS_DISTRO-joint-trajectory-controller \
+        ros-$ROS_DISTRO-joint-state-* \
+        ros-$ROS_DISTRO-gripper-controllers \
+        ros-$ROS_DISTRO-trajectory-msgs
+    ```
+
+    If the system locale is not set to English, it must be set to English locale:
+
+    ```bash
+    echo "export LC_NUMERIC=en_US.UTF-8" >> ~/.bashrc
+    source ~/.bashrc
+    ```
+
+### 4. Build and Source Workspace
 
 Check if you are in a virtual environment. If so, it is recommended to exit the virtual environment first.
 
@@ -59,26 +144,13 @@ Check if you are in a virtual environment. If so, it is recommended to exit the 
 which pip3
 ```
 
-1. Create workspace
+Build and Source the workspace:
 
-    ```bash
-    mkdir -p ~/catkin_ws/src
-    cd ~/catkin_ws/src
-    ```
-
-2. Clone repository
-
-    ```bash
-    git clone https://github.com/agilexrobotics/agx_arm_ros.git
-    ```
-
-3. Build
-
-    ```bash
-    cd ~/catkin_ws
-    colcon build
-    source install/setup.bash
-    ```
+```bash
+cd ~/catkin_ws
+colcon build
+source install/setup.bash
+```
 
 ---
 
@@ -86,7 +158,16 @@ which pip3
 
 ### Activate CAN Module
 
-CAN module must be activated before use. See: [CAN Configuration Guide](./docs/CAN_USER.md)
+CAN module must be activated before use. For details, see: [CAN Configuration Guide](./docs/CAN_USER_EN.md)
+
+When only a single CAN module is connected to the computer, you can **quickly complete activation** through the following steps:
+
+Open a terminal window and execute the following command:
+
+```bash
+cd ~/catkin_ws/src/agx_arm_ros/scripts 
+bash can_activate.sh
+```
 
 ### Launch Driver
 
@@ -97,7 +178,8 @@ You can start the driver using a launch file or by running the node directly.
 > - **`can_port`**: The CAN port connected to the arm, e.g. `can0`.
 > - **`arm_type`**: The arm model, e.g. `piper`.
 > - **`effector_type`**: The end-effector type, e.g. `none` or `agx_gripper`.
-> - **`tcp_offset`**: Tool Center Point (TCP) offset, e.g. [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] (Note: All values of this parameter must be floating-point numbers; for TCP offset configuration examples, see [TCP Offset Guide](./docs/tcp_offset/TCP_OFFSET_EN.md)).
+> - **`tcp_offset`**: Tool Center Point (TCP) offset relative to the flange center, e.g. [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] 
+>   - Note: All values of this parameter must be floating-point numbers; for TCP offset configuration examples, see [TCP Offset Guide](./docs/tcp_offset/TCP_OFFSET_EN.md).
 >
 > For full parameter descriptions, default values and options, see **[Launch Parameters](#launch-parameters)** below.
 
@@ -135,7 +217,7 @@ ros2 launch agx_arm_ctrl start_single_agx_arm_rviz.launch.py can_port:=can0 arm_
 | `speed_percent` | `100` | Motion speed (%) | `0-100` |
 | `pub_rate` | `200` | Status publish rate (Hz) | - |
 | `enable_timeout` | `5.0` | Enable timeout (seconds) | - |
-| `tcp_offset` | `[0.0,0.0,0.0,0.0,0.0,0.0]` | TCP offset [x,y,z,rx,ry,rz] | - |
+| `tcp_offset` | `[0.0,0.0,0.0,0.0,0.0,0.0]` | Tool Center Point (TCP) offset relative to the flange center [x,y,z,rx,ry,rz] | - |
 | `log_level` | `info` | Log level | `debug`, `info`, `warn`, `error`, `fatal` |
 
 ---
@@ -370,6 +452,136 @@ Full joint name list:
 - Left hand: `l_f_joint1_1`, `l_f_joint1_2`, `l_f_joint2`, `l_f_joint3`, `l_f_joint4`, `l_f_joint5`
 - Right hand: `r_f_joint1_1`, `r_f_joint1_2`, `r_f_joint2`, `r_f_joint3`, `r_f_joint4`, `r_f_joint5`
 
+#### Arm Status Details (`/feedback/arm_status`)
+
+Message type: `agx_arm_msgs/AgxArmStatus`
+
+**Message Field Description:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ctrl_mode` | `uint8` | Control mode, see table below |
+| `arm_status` | `uint8` | Arm status, see table below |
+| `mode_feedback` | `uint8` | Mode feedback, see table below |
+| `teach_status` | `uint8` | Teach status, see table below |
+| `motion_status` | `uint8` | Motion status: 0=reached target, 1=not reached |
+| `trajectory_num` | `uint8` | Current trajectory point number (0~255, feedback in offline trajectory mode) |
+| `err_status` | `int64` | Error status code |
+| `joint_1_angle_limit` ~ `joint_7_angle_limit` | `bool` | Joint 1~7 angle limit (true=abnormal, false=normal) |
+| `communication_status_joint_1` ~ `communication_status_joint_7` | `bool` | Joint 1~7 communication status (true=abnormal, false=normal) |
+
+**Control Mode (`ctrl_mode`):**
+
+| Value | Description |
+|-------|-------------|
+| 0 | Standby |
+| 1 | CAN command control |
+| 2 | Teach mode |
+| 3 | Ethernet control |
+| 4 | WiFi control |
+| 5 | Remote control mode |
+| 6 | Coordinated teach input |
+| 7 | Offline trajectory mode |
+| 8 | TCP control |
+
+**Arm Status (`arm_status`):**
+
+| Value | Description |
+|-------|-------------|
+| 0 | Normal |
+| 1 | Emergency stop |
+| 2 | No solution |
+| 3 | Singularity |
+| 4 | Target angle out of range |
+| 5 | Joint communication abnormal |
+| 6 | Joint brake not released |
+| 7 | Collision detected |
+| 8 | Teach drag overspeed |
+| 9 | Joint status abnormal |
+| 10 | Other abnormal |
+| 11 | Teaching recording |
+| 12 | Teaching executing |
+| 13 | Teaching paused |
+| 14 | Main controller NTC overtemperature |
+| 15 | Release resistor NTC overtemperature |
+
+**Mode Feedback (`mode_feedback`):**
+
+| Value | Description |
+|-------|-------------|
+| 0 | MOVE P |
+| 1 | MOVE J |
+| 2 | MOVE L |
+| 3 | MOVE C |
+| 4 | MOVE MIT |
+| 5 | MOVE CPV |
+
+**Teach Status (`teach_status`):**
+
+| Value | Description |
+|-------|-------------|
+| 0 | Closed |
+| 1 | Start teaching record (enter drag teaching) |
+| 2 | End teaching record (exit drag teaching) |
+| 3 | Execute teaching trajectory |
+| 4 | Pause execution |
+| 5 | Continue execution |
+| 6 | Terminate execution |
+| 7 | Move to trajectory start point |
+
+#### Gripper Status Details (`/feedback/gripper_status`)
+
+Message type: `agx_arm_msgs/GripperStatus`
+
+**Message Field Description:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `header` | `std_msgs/Header` | Message header |
+| `width` | `float64` | Current gripper opening width (unit: meters) |
+| `force` | `float64` | Current gripping force (unit: Newtons) |
+| `voltage_too_low` | `bool` | Voltage too low (true=abnormal, false=normal) |
+| `motor_overheating` | `bool` | Motor overheating (true=abnormal, false=normal) |
+| `driver_overcurrent` | `bool` | Driver overcurrent (true=abnormal, false=normal) |
+| `driver_overheating` | `bool` | Driver overheating (true=abnormal, false=normal) |
+| `sensor_status` | `bool` | Sensor status (true=abnormal, false=normal) |
+| `driver_error_status` | `bool` | Driver error status (true=abnormal, false=normal) |
+| `driver_enable_status` | `bool` | Driver enable status (true=enabled, false=disabled) |
+| `homing_status` | `bool` | Homing status (true=completed, false=not completed) |
+
+#### Hand Status Details (`/feedback/hand_status`)
+
+Message type: `agx_arm_msgs/HandStatus`
+
+**Message Field Description:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `header` | `std_msgs/Header` | Message header |
+| `left_or_right` | `uint8` | Hand type identifier: 1=left hand, 2=right hand |
+
+**Finger Position Fields (range: [0, 100], 0=fully open, 100=fully closed):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `thumb_tip_pos` | `uint8` | Thumb tip position |
+| `thumb_base_pos` | `uint8` | Thumb base position |
+| `index_finger_pos` | `uint8` | Index finger position |
+| `middle_finger_pos` | `uint8` | Middle finger position |
+| `ring_finger_pos` | `uint8` | Ring finger position |
+| `pinky_finger_pos` | `uint8` | Pinky finger position |
+
+**Finger Motor Status Fields (0=idle, 1=running, 2=stalled/jammed):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `thumb_tip_status` | `uint8` | Thumb tip motor status |
+| `thumb_base_status` | `uint8` | Thumb base motor status |
+| `index_finger_status` | `uint8` | Index finger motor status |
+| `middle_finger_status` | `uint8` | Middle finger motor status |
+| `ring_finger_status` | `uint8` | Ring finger motor status |
+| `pinky_finger_status` | `uint8` | Pinky finger motor status |
+
 ### Control Topics
 
 | Topic                           | Message Type                       | Description           | Condition          |
@@ -432,6 +644,79 @@ ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
 | `l_f_joint4` / `r_f_joint4` | Ring finger | [0, 100] |
 | `l_f_joint5` / `r_f_joint5` | Pinky finger | [0, 100] |
 
+#### `/control/move_mit` Details
+
+Message type: `agx_arm_msgs/MoveMITMsg`
+
+**Message Field Description:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `joint_index` | `int32[]` | Array of joint indices to control |
+| `p_des` | `float64[]` | Desired joint position array (unit: radians) |
+| `v_des` | `float64[]` | Desired joint velocity array (unit: radians/second) |
+| `kp` | `float64[]` | Position gain array |
+| `kd` | `float64[]` | Velocity gain array |
+| `torque` | `float64[]` | Desired joint torque array (unit: Newton-meters, N·m) |
+
+> **Note:** All array fields must have the same length as `joint_index`. Supports simultaneous control of multiple joints.
+
+#### `/control/hand` Details
+
+Message type: `agx_arm_msgs/HandCmd`
+
+**Message Field Description:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mode` | `string` | Control mode: `position` (position) / `speed` (speed) / `current` (current) |
+
+**Finger Target Value Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `thumb_tip` | `int8` | Thumb tip target value |
+| `thumb_base` | `int8` | Thumb base target value |
+| `index_finger` | `int8` | Index finger target value |
+| `middle_finger` | `int8` | Middle finger target value |
+| `ring_finger` | `int8` | Ring finger target value |
+| `pinky_finger` | `int8` | Pinky finger target value |
+
+**Value Ranges for Different Modes:**
+
+| Mode | Value Range | Description |
+|------|-------------|-------------|
+| `position` | [0, 100] | 0=fully open, 100=fully closed |
+| `speed` | [-100, 100] | Negative=open direction, positive=close direction |
+| `current` | [-100, 100] | Negative=open direction, positive=close direction |
+
+#### `/control/hand_position_time` Details
+
+Message type: `agx_arm_msgs/HandPositionTimeCmd`
+
+**Message Field Description:**
+
+**Finger Target Position Fields (range: [0, 100], 0=fully open, 100=fully closed):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `thumb_tip_pos` | `int8` | Thumb tip position |
+| `thumb_base_pos` | `int8` | Thumb base position |
+| `index_finger_pos` | `int8` | Index finger position |
+| `middle_finger_pos` | `int8` | Middle finger position |
+| `ring_finger_pos` | `int8` | Ring finger position |
+| `pinky_finger_pos` | `int8` | Pinky finger position |
+
+**Finger Arrival Time Fields (unit: 10ms, range: [0, 255], e.g.: 200 = 2 seconds):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `thumb_tip_time` | `uint8` | Thumb tip arrival time |
+| `thumb_base_time` | `uint8` | Thumb base arrival time |
+| `index_finger_time` | `uint8` | Index finger arrival time |
+| `middle_finger_time` | `uint8` | Middle finger arrival time |
+| `ring_finger_time` | `uint8` | Ring finger arrival time |
+| `pinky_finger_time` | `uint8` | Pinky finger arrival time |
 
 ### Services
 
