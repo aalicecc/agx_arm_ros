@@ -25,8 +25,8 @@ sudo apt update
 sudo apt install -y can-utils ethtool
 echo "  ✓ CAN tools installation completed."
 
-# 3. Install ROS2 dependencies
-echo -e "\n[3/4] Installing ROS2 control-related dependencies..."
+# 3. Install ROS1 dependencies
+echo -e "\n[3/4] Installing ROS1 control-related dependencies..."
 # Check ROS_DISTRO environment variable
 if [ -z "$ROS_DISTRO" ]; then
     echo "  ✗ Environment variable ROS_DISTRO is not set."
@@ -34,26 +34,25 @@ if [ -z "$ROS_DISTRO" ]; then
 fi
 
 sudo apt install -y \
-    ros-$ROS_DISTRO-ros2-control \
-    ros-$ROS_DISTRO-ros2-controllers \
+    ros-$ROS_DISTRO-ros-control \
+    ros-$ROS_DISTRO-ros-controllers \
     ros-$ROS_DISTRO-controller-manager \
     ros-$ROS_DISTRO-topic-tools \
     ros-$ROS_DISTRO-joint-state-publisher-gui \
     ros-$ROS_DISTRO-robot-state-publisher \
     ros-$ROS_DISTRO-xacro \
-    python3-colcon-common-extensions
 
-echo "  ✓ ROS2 control dependencies installation completed."
+echo "  ✓ ROS1 control dependencies installation completed."
 
-# 4. Install MoveIt2 and additional controllers
-echo -e "\n[4/4] Installing MoveIt2 and related dependencies..."
+# 4. Install MoveIt and additional controllers
+echo -e "\n[4/4] Installing MoveIt and related dependencies..."
 
 sudo apt install -y ros-$ROS_DISTRO-moveit*
 sudo apt-get install -y \
-    ros-$ROS_DISTRO-control* \
+    ros-$ROS_DISTRO-ros-control \
     ros-$ROS_DISTRO-joint-trajectory-controller \
     ros-$ROS_DISTRO-joint-state-* \
-    ros-$ROS_DISTRO-gripper-controllers \
+    ros-$ROS_DISTRO-ros-controllers \
     ros-$ROS_DISTRO-trajectory-msgs
 
 # Set locale to English to avoid MoveIt startup issues

@@ -10,7 +10,7 @@
   <arg name="payload" default="empty" />
   <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]" />
 
-  <!-- 根据 arm_type 包含对应的 description launch -->
+  <!-- Select the corresponding description launch based on arm_type -->
   <include file="$(find piper_description)/launch/piper_with_gripper/display_xacro.launch"
            if="$(eval arg('arm_type') == 'piper')">
     <arg name="gui" value="true" />
@@ -36,7 +36,7 @@
     <arg name="gui" value="true" />
   </include>
 
-  <!-- 机械臂控制节点 -->
+  <!-- node -->
   <node pkg="agx_arm_ctrl" type="agx_arm_ctrl_single_node.py" name="agx_arm_ctrl_single_node" output="screen">
     <param name="can_port" value="$(arg can_port)" />
     <param name="arm_type" value="$(arg arm_type)" />
@@ -49,7 +49,6 @@
     <param name="payload" value="$(arg payload)" />
     <rosparam param="tcp_offset" subst_value="true">$(arg tcp_offset)</rosparam>
 
-    <!-- remap /control/joint_states to /joint_states for rviz -->
     <remap from="/control/joint_states" to="/joint_states" />
   </node>
 </launch>

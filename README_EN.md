@@ -92,7 +92,7 @@ Or install manually by executing the following commands in order:
 
 4. MoveIt
 
-    Before using MoveIt, you need to configure the related dependencies. For detailed steps, please refer to: [agx_arm_moveit](./src/agx_arm_moveit/README_EN.md)
+    Before using MoveIt, you need to configure the related dependencies. For detailed steps, please refer to: [agx_arm_moveit](https://github.com/aalicecc/agx_arm_moveit.git)
     
     Or execute the following commands in order:
 
@@ -105,7 +105,7 @@ Or install manually by executing the following commands in order:
         ros-$ROS_DISTRO-control* \
         ros-$ROS_DISTRO-joint-trajectory-controller \
         ros-$ROS_DISTRO-joint-state-* \
-        ros-$ROS_DISTRO-gripper-controllers \
+        ros-$ROS_DISTRO-ros-controllers \
         ros-$ROS_DISTRO-trajectory-msgs
     ```
 
@@ -171,6 +171,10 @@ roslaunch agx_arm_ctrl start_single_agx_arm.launch can_port:=can0 arm_type:=pipe
 ```
 
 **Running node directly:**
+
+```
+roscore
+```
 
 ```bash
 rosrun agx_arm_ctrl agx_arm_ctrl_single_node.py _can_port:=can0 _arm_type:=piper _effector_type:=none _tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'

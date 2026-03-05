@@ -25,11 +25,14 @@
 ```bash
 git clone https://github.com/agilexrobotics/pyAgxArm.git
 cd pyAgxArm
+<<<<<<< HEAD
 ```
 
 安装命令：
 
 ```bash
+=======
+>>>>>>> 3310fe6 (refactor():更新ros1版本，当前只支持piper型号)
 pip3 install .
 ```
 
@@ -92,7 +95,7 @@ bash ./agx_arm_install_deps.sh
 
 4. Moveit
 
-    使用 MoveIt 前，需先配置相关依赖。 具体步骤请参考：[agx_arm_moveit](./src/agx_arm_moveit/README.md)
+    使用 MoveIt 前，需先配置相关依赖。 具体步骤请参考：[agx_arm_moveit](https://github.com/aalicecc/agx_arm_moveit.git)
     
     或者依次执行以下命令进行配置：
 
@@ -105,7 +108,7 @@ bash ./agx_arm_install_deps.sh
         ros-$ROS_DISTRO-control* \
         ros-$ROS_DISTRO-joint-trajectory-controller \
         ros-$ROS_DISTRO-joint-state-* \
-        ros-$ROS_DISTRO-gripper-controllers \
+        ros-$ROS_DISTRO-ros-controllers \
         ros-$ROS_DISTRO-trajectory-msgs
     ```
 
@@ -171,6 +174,10 @@ roslaunch agx_arm_ctrl start_single_agx_arm.launch can_port:=can0 arm_type:=pipe
 ```
 
 **直接运行节点启动:**
+
+```
+roscore
+```
 
 ```bash
 rosrun agx_arm_ctrl agx_arm_ctrl_single_node.py _can_port:=can0 _arm_type:=piper _effector_type:=none _tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
