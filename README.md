@@ -1,15 +1,14 @@
-# AgileX 机械臂 ROS2 驱动
+# AgileX 机械臂 ROS1 驱动
 
 [English](./README_EN.md)
 
 |ROS |STATE|
 |---|---|
-|![humble](https://img.shields.io/badge/ros-humble-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
-|![jazzy](https://img.shields.io/badge/ros-jazzy-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
+|![noetic](https://img.shields.io/badge/ros-noetic-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
 
 ## 概述
 
-本驱动包为 AgileX 系列机械臂（Piper、Nero 等）提供完整的 ROS2 接口支持。
+本驱动包为 AgileX 系列机械臂（Piper、Nero 等）提供完整的 ROS1 接口支持。
 
 |说明 |文档|
 |---|---|
@@ -28,21 +27,13 @@ git clone https://github.com/agilexrobotics/pyAgxArm.git
 cd pyAgxArm
 ```
 
-根据你的 ROS 版本选择安装命令：
-
-**Jazzy** 安装命令：
-
-```bash
-pip3 install . --break-system-packages
-```
-
-**Humble** 安装命令：
+安装命令：
 
 ```bash
 pip3 install .
 ```
 
-### 2. 安装 ROS2 驱动
+### 2. 安装 ROS1 驱动
 
 1. 创建工作空间
 
@@ -76,16 +67,6 @@ bash ./agx_arm_install_deps.sh
 
 1. Python 依赖
 
-    根据你的 ROS 版本选择安装命令：
-
-    **Jazzy** 安装命令:
-
-    ```bash
-    pip3 install python-can scipy numpy --break-system-packages
-    ```
-
-    **Humble** 安装命令:
-
     ```bash
     pip3 install python-can scipy numpy
     ```
@@ -96,18 +77,17 @@ bash ./agx_arm_install_deps.sh
     sudo apt update && sudo apt install can-utils ethtool
     ```
 
-3. ROS2 依赖
+3. ROS 依赖
 
     ```bash
     sudo apt install -y \
-        ros-$ROS_DISTRO-ros2-control \
-        ros-$ROS_DISTRO-ros2-controllers \
+        ros-$ROS_DISTRO-ros-control \
+        ros-$ROS_DISTRO-ros-controllers \
         ros-$ROS_DISTRO-controller-manager \
         ros-$ROS_DISTRO-topic-tools \
         ros-$ROS_DISTRO-joint-state-publisher-gui \
         ros-$ROS_DISTRO-robot-state-publisher \
-        ros-$ROS_DISTRO-xacro \
-        python3-colcon-common-extensions
+        ros-$ROS_DISTRO-xacro
     ```
 
 4. Moveit
@@ -148,8 +128,8 @@ which pip3
 
 ```bash
 cd ~/catkin_ws
-colcon build
-source install/setup.bash
+catkin_make
+source devel/setup.bash
 ```
 
 ---
@@ -187,22 +167,22 @@ bash can_activate.sh
 **使用 launch 文件启动：**
 
 ```bash
-ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
+roslaunch agx_arm_ctrl start_single_agx_arm.launch can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
 **直接运行节点启动:**
 
 ```bash
-ros2 run agx_arm_ctrl agx_arm_ctrl_single --ros-args -p can_port:=can0 -p arm_type:=piper -p effector_type:=none -p tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
+rosrun agx_arm_ctrl agx_arm_ctrl_single_node.py _can_port:=can0 _arm_type:=piper _effector_type:=none _tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
 **可视化调试启动:**
 
 ```bash
-ros2 launch agx_arm_ctrl start_single_agx_arm_rviz.launch.py can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
+roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
-> **注意：** `start_single_agx_arm_rviz.launch` 会持续占用 `/joint_states` 话题，导致 [控制示例](#控制示例) 中的控制指令无法正常运行。如需执行控制指令，请先关闭此 launch 文件。
+> **注意：** `start_single_agx_arm_rviz.launch` 会持续占用 `/joint_states` 话题，导致 [控制示例](#控制示例) 中的控制指令无法正常运行。如需执行控制指令，请先关闭此 launch。
 
 ### 启动参数
 
@@ -228,7 +208,7 @@ ros2 launch agx_arm_ctrl start_single_agx_arm_rviz.launch.py can_port:=can0 arm_
 
 ```bash
 cd ~/catkin_ws
-source install/setup.bash
+source devel/setup.bash
 cd src/agx_arm_ros
 ```
 
@@ -237,28 +217,28 @@ cd src/agx_arm_ros
 1. 关节运动
 
     ```bash
-    ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+    rostopic pub /control/move_j sensor_msgs/JointState \
       "$(cat test/piper/test_move_j.yaml)" -1
     ```
 
 2. 点到点运动
 
     ```bash
-    ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+    rostopic pub /control/move_p geometry_msgs/PoseStamped \
       "$(cat test/piper/test_move_p.yaml)" -1
     ```
 
 3. 直线运动
 
     ```bash
-    ros2 topic pub /control/move_l geometry_msgs/msg/PoseStamped \
+    rostopic pub /control/move_l geometry_msgs/PoseStamped \
       "$(cat test/piper/test_move_l.yaml)" -1
     ```
 
 4. 圆弧运动（起点 → 中间点 → 终点）
 
     ```bash
-    ros2 topic pub /control/move_c geometry_msgs/msg/PoseArray \
+    rostopic pub /control/move_c geometry_msgs/PoseArray \
       "$(cat test/piper/test_move_c.yaml)" -1
     ```
 
@@ -267,14 +247,14 @@ cd src/agx_arm_ros
 1. 关节运动
 
     ```bash
-    ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+    rostopic pub /control/move_j sensor_msgs/JointState \
       "$(cat test/nero/test_move_j.yaml)" -1
     ```
 
 2. 点到点运动
 
     ```bash
-    ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+    rostopic pub /control/move_p geometry_msgs/PoseStamped \
       "$(cat test/nero/test_move_p.yaml)" -1
     ```
 
@@ -283,14 +263,14 @@ cd src/agx_arm_ros
 1. 夹爪控制（通过 `/control/joint_states`控制）
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/gripper/test_gripper_joint_states.yaml)" -1
     ```
 
 2. 机械臂 + 夹爪联合控制（通过 `/control/joint_states`控制）
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/piper/test_arm_gripper_joint_states.yaml)" -1
     ```
 
@@ -299,42 +279,42 @@ cd src/agx_arm_ros
 1. 灵巧手 — 位置模式（所有手指移动到 10）
 
     ```bash
-    ros2 topic pub /control/hand agx_arm_msgs/msg/HandCmd \
+    rostopic pub /control/hand agx_arm_msgs/HandCmd \
       "$(cat test/hand/test_hand_position.yaml)" -1
     ```
 
 2. 灵巧手 — 速度模式（所有手指速度 50）
 
     ```bash
-    ros2 topic pub /control/hand agx_arm_msgs/msg/HandCmd \
+    rostopic pub /control/hand agx_arm_msgs/HandCmd \
       "$(cat test/hand/test_hand_speed.yaml)" -1
     ```
 
 3. 灵巧手 — 电流模式（所有手指电流 50）
 
     ```bash
-    ros2 topic pub /control/hand agx_arm_msgs/msg/HandCmd \
+    rostopic pub /control/hand agx_arm_msgs/HandCmd \
       "$(cat test/hand/test_hand_current.yaml)" -1
     ```
 
 4. 灵巧手 — 位置-时间控制（所有手指移动到 50，时间 1 秒）
 
     ```bash
-    ros2 topic pub /control/hand_position_time agx_arm_msgs/msg/HandPositionTimeCmd \
+    rostopic pub /control/hand_position_time agx_arm_msgs/HandPositionTimeCmd \
       "$(cat test/hand/test_hand_position_time.yaml)" -1
     ```
 
 5. 灵巧手控制（通过 `/control/joint_states`控制）
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/hand/test_hand_joint_states.yaml)" -1
     ```
 
 6. 机械臂 + 灵巧手联合控制（通过 `/control/joint_states`控制）
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/piper/test_arm_hand_joint_states.yaml)" -1
     ```
 
@@ -343,25 +323,25 @@ cd src/agx_arm_ros
 1. 使能机械臂
 
     ```bash
-    ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: true}"
+    rosservice call /enable_agx_arm "data: true"
     ```
 
 2. 失能机械臂
 
     ```bash
-    ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: false}"
+    rosservice call /enable_agx_arm "data: false"
     ```
 
 3. 回零位
 
     ```bash
-    ros2 service call /move_home std_srvs/srv/Empty
+    rosservice call /move_home
     ```
 
 4. 退出示教模式（Piper 系列）
 
     ```bash
-    ros2 service call /exit_teach_mode std_srvs/srv/Empty
+    rosservice call /exit_teach_mode
     ```
 
     > **⚠️ 重要安全提示:** 
@@ -373,42 +353,42 @@ cd src/agx_arm_ros
 1. 关节状态
 
     ```bash
-    ros2 topic echo /feedback/joint_states
+    rostopic echo /feedback/joint_states
     ```
 
 2. TCP 位姿
 
     ```bash
-    ros2 topic echo /feedback/tcp_pose
+    rostopic echo /feedback/tcp_pose
     ```
 
 3. 机械臂状态
 
     ```bash
-    ros2 topic echo /feedback/arm_status
+    rostopic echo /feedback/arm_status
     ```
 
 4. 主臂关节角度(主臂模式下使用)
 
     ```bash
-    ros2 topic echo /feedback/master_joint_angles
+    rostopic echo /feedback/master_joint_angles
     ```
 
 5. 夹爪状态
 
     ```bash
-    ros2 topic echo /feedback/gripper_status
+    rostopic echo /feedback/gripper_status
     ```
 
 6. 灵巧手状态
 
     ```bash
-    ros2 topic echo /feedback/hand_status
+    rostopic echo /feedback/hand_status
     ```
 
 ---
 
-## ROS2 接口
+## ROS1 接口
 
 ### 反馈话题
 
@@ -623,7 +603,7 @@ cd src/agx_arm_ros
 
 示例：控制夹爪宽度 0.05m、力 1.5N
 ```bash
-ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+rostopic pub /control/joint_states sensor_msgs/JointState \
   "{name: [gripper], position: [0.05], velocity: [], effort: [1.5]}" -1
 ```
 
@@ -633,7 +613,7 @@ ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
 
 示例：仅控制左手食指到位置 80
 ```bash
-ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+rostopic pub /control/joint_states sensor_msgs/JointState \
   "{name: [l_f_joint2], position: [80], velocity: [], effort: []}" -1
 ```
 

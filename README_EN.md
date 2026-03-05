@@ -1,15 +1,14 @@
-# AgileX Robotic Arm ROS2 Driver
+# AgileX Robotic Arm ROS1 Driver
 
 [中文](./README.md)
 
 |ROS |STATE|
 |---|---|
-|![humble](https://img.shields.io/badge/ros-humble-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
-|![jazzy](https://img.shields.io/badge/ros-jazzy-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
+|![noetic](https://img.shields.io/badge/ros-noetic-blue.svg)|![Pass](https://img.shields.io/badge/Pass-blue.svg)|
 
 ## Overview
 
-This driver package provides full ROS2 interface support for AgileX series robotic arms (Piper, Nero, etc.).
+This driver package provides full ROS1 interface support for AgileX series robotic arms (Piper, Nero, etc.).
 
 | Description | Documentation |
 |---|---|
@@ -28,21 +27,13 @@ git clone https://github.com/agilexrobotics/pyAgxArm.git
 cd pyAgxArm
 ```
 
-Choose the installation command based on your ROS version:
-
-**Jazzy** installation command:
-
-```bash
-pip3 install . --break-system-packages
-```
-
-**Humble** installation command:
+Installation command:
 
 ```bash
 pip3 install .
 ```
 
-### 2. Install ROS2 Driver
+### 2. Install ROS1 Driver
 
 1. Create workspace
 
@@ -76,16 +67,6 @@ Or install manually by executing the following commands in order:
 
 1. Python dependencies
 
-    Choose the installation command based on your ROS version:
-
-    **Jazzy** installation command:
-
-    ```bash
-    pip3 install python-can scipy numpy --break-system-packages
-    ```
-
-    **Humble** installation command:
-
     ```bash
     pip3 install python-can scipy numpy
     ```
@@ -96,18 +77,17 @@ Or install manually by executing the following commands in order:
     sudo apt update && sudo apt install can-utils ethtool
     ```
 
-3. ROS2 dependencies
+3. ROS dependencies
 
     ```bash
     sudo apt install -y \
-        ros-$ROS_DISTRO-ros2-control \
-        ros-$ROS_DISTRO-ros2-controllers \
+        ros-$ROS_DISTRO-ros-control \
+        ros-$ROS_DISTRO-ros-controllers \
         ros-$ROS_DISTRO-controller-manager \
         ros-$ROS_DISTRO-topic-tools \
         ros-$ROS_DISTRO-joint-state-publisher-gui \
         ros-$ROS_DISTRO-robot-state-publisher \
-        ros-$ROS_DISTRO-xacro \
-        python3-colcon-common-extensions
+        ros-$ROS_DISTRO-xacro
     ```
 
 4. MoveIt
@@ -148,8 +128,8 @@ Build and Source the workspace:
 
 ```bash
 cd ~/catkin_ws
-colcon build
-source install/setup.bash
+catkin_make
+source devel/setup.bash
 ```
 
 ---
@@ -187,19 +167,19 @@ You can start the driver using a launch file or by running the node directly.
 **Using launch file:**
 
 ```bash
-ros2 launch agx_arm_ctrl start_single_agx_arm.launch.py can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
+roslaunch agx_arm_ctrl start_single_agx_arm.launch can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
 **Running node directly:**
 
 ```bash
-ros2 run agx_arm_ctrl agx_arm_ctrl_single --ros-args -p can_port:=can0 -p arm_type:=piper -p effector_type:=none -p tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
+rosrun agx_arm_ctrl agx_arm_ctrl_single_node.py _can_port:=can0 _arm_type:=piper _effector_type:=none _tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
 **Visualization Debug Launch:**
 
 ```bash
-ros2 launch agx_arm_ctrl start_single_agx_arm_rviz.launch.py can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
+roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
 > **Note:** This launch file continuously occupies the `/joint_states` topic, preventing control commands in the [Control Examples](#control-examples) from executing properly. To run control commands, please terminate this launch file first.
@@ -228,7 +208,7 @@ Open an additional terminal and run the following commands:
 
 ```bash
 cd ~/catkin_ws
-source install/setup.bash
+source devel/setup.bash
 cd src/agx_arm_ros
 ```
 
@@ -237,28 +217,28 @@ cd src/agx_arm_ros
 1. Joint motion
 
     ```bash
-    ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+    rostopic pub /control/move_j sensor_msgs/JointState \
       "$(cat test/piper/test_move_j.yaml)" -1
     ```
 
 2. Point-to-point motion
 
     ```bash
-    ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+    rostopic pub /control/move_p geometry_msgs/PoseStamped \
       "$(cat test/piper/test_move_p.yaml)" -1
     ```
 
 3. Linear motion
 
     ```bash
-    ros2 topic pub /control/move_l geometry_msgs/msg/PoseStamped \
+    rostopic pub /control/move_l geometry_msgs/PoseStamped \
       "$(cat test/piper/test_move_l.yaml)" -1
     ```
 
 4. Circular motion (start → middle → end)
 
     ```bash
-    ros2 topic pub /control/move_c geometry_msgs/msg/PoseArray \
+    rostopic pub /control/move_c geometry_msgs/PoseArray \
       "$(cat test/piper/test_move_c.yaml)" -1
     ```
 
@@ -267,14 +247,14 @@ cd src/agx_arm_ros
 1. Joint motion
 
     ```bash
-    ros2 topic pub /control/move_j sensor_msgs/msg/JointState \
+    rostopic pub /control/move_j sensor_msgs/JointState \
       "$(cat test/nero/test_move_j.yaml)" -1
     ```
 
 2. Point-to-point motion
 
     ```bash
-    ros2 topic pub /control/move_p geometry_msgs/msg/PoseStamped \
+    rostopic pub /control/move_p geometry_msgs/PoseStamped \
       "$(cat test/nero/test_move_p.yaml)" -1
     ```
 
@@ -283,14 +263,14 @@ cd src/agx_arm_ros
 1. Gripper control (via `/control/joint_states`)
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/gripper/test_gripper_joint_states.yaml)" -1
     ```
 
 2. Arm + Gripper combined control (via `/control/joint_states`)
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/piper/test_arm_gripper_joint_states.yaml)" -1
     ```
 
@@ -299,42 +279,42 @@ cd src/agx_arm_ros
 1. Dexterous hand — Position mode (all fingers move to 10)
 
     ```bash
-    ros2 topic pub /control/hand agx_arm_msgs/msg/HandCmd \
+    rostopic pub /control/hand agx_arm_msgs/HandCmd \
       "$(cat test/hand/test_hand_position.yaml)" -1
     ```
 
 2. Dexterous hand — Speed mode (all fingers speed 50)
 
     ```bash
-    ros2 topic pub /control/hand agx_arm_msgs/msg/HandCmd \
+    rostopic pub /control/hand agx_arm_msgs/HandCmd \
       "$(cat test/hand/test_hand_speed.yaml)" -1
     ```
 
 3. Dexterous hand — Current mode (all fingers current 50)
 
     ```bash
-    ros2 topic pub /control/hand agx_arm_msgs/msg/HandCmd \
+    rostopic pub /control/hand agx_arm_msgs/HandCmd \
       "$(cat test/hand/test_hand_current.yaml)" -1
     ```
 
 4. Dexterous hand — Position-time control (all fingers move to 50, time 1 second)
 
     ```bash
-    ros2 topic pub /control/hand_position_time agx_arm_msgs/msg/HandPositionTimeCmd \
+    rostopic pub /control/hand_position_time agx_arm_msgs/HandPositionTimeCmd \
       "$(cat test/hand/test_hand_position_time.yaml)" -1
     ```
 
 5. Dexterous hand control (via `/control/joint_states`)
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/hand/test_hand_joint_states.yaml)" -1
     ```
 
 6. Arm + Dexterous hand combined control (via `/control/joint_states`)
 
     ```bash
-    ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+    rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/piper/test_arm_hand_joint_states.yaml)" -1
     ```
 
@@ -343,25 +323,25 @@ cd src/agx_arm_ros
 1. Enable arm
 
     ```bash
-    ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: true}"
+    rosservice call /enable_agx_arm "data: true"
     ```
 
 2. Disable arm
 
     ```bash
-    ros2 service call /enable_agx_arm std_srvs/srv/SetBool "{data: false}"
+    rosservice call /enable_agx_arm "data: false"
     ```
 
 3. Move to home position
 
     ```bash
-    ros2 service call /move_home std_srvs/srv/Empty
+    rosservice call /move_home
     ```
 
 4. Exit teach mode (Piper series)
 
     ```bash
-    ros2 service call /exit_teach_mode std_srvs/srv/Empty
+    rosservice call /exit_teach_mode
     ```
 
     > **⚠️ Important Safety Note:** 
@@ -373,42 +353,42 @@ cd src/agx_arm_ros
 1. Joint states
 
     ```bash
-    ros2 topic echo /feedback/joint_states
+    rostopic echo /feedback/joint_states
     ```
 
 2. TCP pose
 
     ```bash
-    ros2 topic echo /feedback/tcp_pose
+    rostopic echo /feedback/tcp_pose
     ```
 
 3. Arm status
 
     ```bash
-    ros2 topic echo /feedback/arm_status
+    rostopic echo /feedback/arm_status
     ```
 
 4. Master joint angles(For master arm mode)
 
     ```bash
-    ros2 topic echo /feedback/master_joint_angles
+    rostopic echo /feedback/master_joint_angles
     ```
 
 5. Gripper status
 
     ```bash
-    ros2 topic echo /feedback/gripper_status
+    rostopic echo /feedback/gripper_status
     ```
 
 6. Dexterous hand status 
 
     ```bash
-    ros2 topic echo /feedback/hand_status
+    rostopic echo /feedback/hand_status
     ```
 
 ---
 
-## ROS2 Interface
+## ROS1 Interface
 
 ### Feedback Topics
 
@@ -621,7 +601,7 @@ Include `gripper` in `name`, set target width via `position`, and set gripping f
 
 Example: Control gripper width to 0.05m with force 1.5N
 ```bash
-ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+rostopic pub /control/joint_states sensor_msgs/JointState \
   "{name: [gripper], position: [0.05], velocity: [], effort: [1.5]}" -1
 ```
 
@@ -631,7 +611,7 @@ Include dexterous hand joint names in `name`, set target position via `position`
 
 Example: Control only the left index finger to position 80
 ```bash
-ros2 topic pub /control/joint_states sensor_msgs/msg/JointState \
+rostopic pub /control/joint_states sensor_msgs/JointState \
   "{name: [l_f_joint2], position: [80], velocity: [], effort: []}" -1
 ```
 
