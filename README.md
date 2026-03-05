@@ -25,14 +25,6 @@
 ```bash
 git clone https://github.com/agilexrobotics/pyAgxArm.git
 cd pyAgxArm
-<<<<<<< HEAD
-```
-
-安装命令：
-
-```bash
-=======
->>>>>>> 3310fe6 (refactor():更新ros1版本，当前只支持piper型号)
 pip3 install .
 ```
 
