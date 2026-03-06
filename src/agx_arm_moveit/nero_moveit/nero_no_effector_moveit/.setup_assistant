@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: agx_arm_description
+    relative_path: agx_arm_urdf/nero/urdf/nero_description.urdf
+    xacro_args: ""
+  SRDF:
+    relative_path: config/nero_description.srdf
+  CONFIG:
+    author_name: agilex
+    author_email: 123456@qq.com
+    generated_timestamp: 1772795185

@@ -212,7 +212,7 @@ roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:
 No real robotic arm connection required. Load the URDF model in RViz and manually adjust joints using the GUI slider:
 
 ```bash
-ros2 launch agx_arm_description display.launch.py arm_type:=piper
+roslaunch agx_arm_description display.launch arm_type:=piper
 ```
 
 **The `arm_type` parameter supports three ways to specify the model:**
@@ -220,19 +220,19 @@ ros2 launch agx_arm_description display.launch.py arm_type:=piper
 1. **Preset model name** (recommended): Use a built-in model name to automatically match the corresponding URDF file
 
     ```bash
-    ros2 launch agx_arm_description display.launch.py arm_type:=piper
+    roslaunch agx_arm_description display.launch arm_type:=piper
     ```
 
 2. **Relative path**: Path relative to the `agx_arm_urdf/` directory, suitable for custom models
 
     ```bash
-    ros2 launch agx_arm_description display.launch.py arm_type:=piper/urdf/piper_description.urdf
+    roslaunch agx_arm_description display.launch arm_type:=piper/urdf/piper_description.urdf
     ```
 
 3. **Absolute path**: Directly specify the absolute path to a URDF file, suitable for model files at any location
 
     ```bash
-    ros2 launch agx_arm_description display.launch.py arm_type:=/home/user/my_robot/custom_arm.urdf
+    roslaunch agx_arm_description display.launch arm_type:=/home/user/my_robot/custom_arm.urdf
     ```
 
 | Parameter | Default | Description |
@@ -246,12 +246,12 @@ ros2 launch agx_arm_description display.launch.py arm_type:=piper
 Please [Launch the Arm Driver](./README_EN.md#launch-driver) first. The model in RViz will track the real arm's joint states in real time (subscribes to `feedback/joint_states`):
 
 ```bash
-ros2 launch agx_arm_description display_urdf_follow.launch.py arm_type:=piper
+roslaunch agx_arm_description display_urdf_follow.launch arm_type:=piper
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `arm_type` | `piper` | Arm model or URDF path (same usage as `display.launch.py` above) |
+| `arm_type` | `piper` | Arm model or URDF path (same usage as `display.launch` above) |
 | `rvizconfig` | Built-in config | Absolute path to a custom RViz configuration file |
 
 > **⚠️ Note: Configuration Consistency**
