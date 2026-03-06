@@ -369,8 +369,16 @@ class AgxArmRosNode(Node):
         status = self.gripper.get_status()
         if status is None:
             return []
+
+        gripper_joint_map = {
+            GRIPPER_JOINT_NAME:    1.0,
+            "gripper_joint1":     0.5,
+            "gripper_joint2":    -0.5,
+        }
+            
         return [
-            (GRIPPER_JOINT_NAME, status.width, 0.0, status.force)
+            (name, status.width * scale, 0.0, status.force)
+            for name, scale in gripper_joint_map.items()
         ]
 
     def _get_hand_joint_data(self):
@@ -534,9 +542,9 @@ class AgxArmRosNode(Node):
 
         # gripper_name → width scale
         gripper_joint_map = {
-            GRIPPER_JOINT_NAME:                    1.0,
-            f"joint{self.arm_joint_count + 1}":    2.0,
-            f"joint{self.arm_joint_count + 2}":    2.0,
+            GRIPPER_JOINT_NAME:   1.0,
+            "gripper_joint1":    2.0,
+            "gripper_joint2":    2.0,
         }
 
         matched = next(
