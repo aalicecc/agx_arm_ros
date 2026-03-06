@@ -20,8 +20,8 @@ Follow the steps below to visually check the flange center coordinate system of 
 1. Open a terminal window and execute the corresponding commands to launch RViz visualization.
     ```bash
     cd ~/catkin_ws
-    source install/setup.bash
-    ros2 launch piper_description display_urdf.launch.py
+    source devel/setup.bash
+    roslaunch agx_arm_description display.launch arm_type:=piper
     ```
 
 2. Operations in the RViz interface:
@@ -42,8 +42,8 @@ Follow the steps below to visually check the flange center coordinate system of 
 1. Open a terminal window and execute the corresponding commands to launch RViz visualization.
     ```bash
     cd ~/catkin_ws
-    source install/setup.bash
-    ros2 launch nero_description display_urdf.launch.py
+    source devel/setup.bash
+    roslaunch agx_arm_description display.launch arm_type:=nero
     ```
 
 2. Operations in the RViz interface:

@@ -14,6 +14,7 @@ This driver package provides full ROS1 interface support for AgileX series robot
 |---|---|
 | CAN module usage | [can_user](./docs/CAN_USER_EN.md) |
 | TCP Offset Configuration | [tcp_offset](./docs/tcp_offset/TCP_OFFSET_EN.md) |
+|Moveit| [Moveit](./src/agx_arm_moveit/README_EN.md) |
 | Q&A | [Q&A](./docs/Q&A.md) |
 
 ---
@@ -45,7 +46,7 @@ pip3 install .
 2. Clone repository
 
     ```bash
-    git clone --recurse-submodules https://github.com/aalicecc/agx_arm_ros_test.git
+    git clone -b ros1 --recurse-submodules https://github.com/agilexrobotics/agx_arm_ros.git
     ```
 
     ```bash
@@ -92,7 +93,7 @@ Or install manually by executing the following commands in order:
 
 4. MoveIt
 
-    Before using MoveIt, you need to configure the related dependencies. For detailed steps, please refer to: [agx_arm_moveit](https://github.com/aalicecc/agx_arm_moveit.git)
+    Before using MoveIt, you need to configure the related dependencies. For detailed steps, please refer to: [agx_arm_moveit](./src/agx_arm_moveit/README_EN.md)
     
     Or execute the following commands in order:
 
@@ -203,6 +204,61 @@ roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:
 | `enable_timeout` | `5.0` | Enable timeout (seconds) | - |
 | `tcp_offset` | `[0.0,0.0,0.0,0.0,0.0,0.0]` | Tool Center Point (TCP) offset relative to the flange center [x,y,z,rx,ry,rz] | - |
 | `log_level` | `info` | Log level | `debug`, `info`, `warn`, `error`, `fatal` |
+
+### URDF Model Visualization
+
+#### Standalone Model Viewer
+
+No real robotic arm connection required. Load the URDF model in RViz and manually adjust joints using the GUI slider:
+
+```bash
+ros2 launch agx_arm_description display.launch.py arm_type:=piper
+```
+
+**The `arm_type` parameter supports three ways to specify the model:**
+
+1. **Preset model name** (recommended): Use a built-in model name to automatically match the corresponding URDF file
+
+    ```bash
+    ros2 launch agx_arm_description display.launch.py arm_type:=piper
+    ```
+
+2. **Relative path**: Path relative to the `agx_arm_urdf/` directory, suitable for custom models
+
+    ```bash
+    ros2 launch agx_arm_description display.launch.py arm_type:=piper/urdf/piper_description.urdf
+    ```
+
+3. **Absolute path**: Directly specify the absolute path to a URDF file, suitable for model files at any location
+
+    ```bash
+    ros2 launch agx_arm_description display.launch.py arm_type:=/home/user/my_robot/custom_arm.urdf
+    ```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `arm_type` | `piper` | Arm model or URDF path. Presets: `piper`, `piper_x`, `piper_l`, `piper_h`, `nero`; also supports relative paths under `agx_arm_urdf/` or any absolute path |
+| `gui` | `true` | Enable joint_state_publisher_gui slider control interface |
+| `rvizconfig` | Built-in config | Absolute path to a custom RViz configuration file |
+
+#### Follow Real Arm
+
+Please [Launch the Arm Driver](./README_EN.md#launch-driver) first. The model in RViz will track the real arm's joint states in real time (subscribes to `feedback/joint_states`):
+
+```bash
+ros2 launch agx_arm_description display_urdf_follow.launch.py arm_type:=piper
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `arm_type` | `piper` | Arm model or URDF path (same usage as `display.launch.py` above) |
+| `rvizconfig` | Built-in config | Absolute path to a custom RViz configuration file |
+
+> **⚠️ Note: Configuration Consistency**
+>
+> When running `display_urdf_follow`, the **arm type** and **end-effector type** of the selected `urdf` must strictly match the configuration in [Launch the Arm Driver](./README_EN.md#launch-driver)
+>
+> - If mismatched, the URDF model will not align with the actual hardware joint definitions, resulting in a **broken TF tree** or **missing model parts in RViz**.
 
 ---
 

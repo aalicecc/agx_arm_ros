@@ -14,6 +14,7 @@
 |---|---|
 |官方can模块的使用|[can_user](./docs/CAN_USER.md)|
 |TCP偏移设置|[tcp_offset](./docs/tcp_offset/TCP_OFFSET.md)|
+|Moveit| [Moveit](./src/agx_arm_moveit/README.md) |
 |Q&A|[Q&A](./docs/Q&A.md)|
 
 ---
@@ -40,7 +41,7 @@ pip3 install .
 2. 克隆仓库
 
     ```bash
-    git clone --recurse-submodules https://github.com/aalicecc/agx_arm_ros_test.git
+    git clone -b ros1 --recurse-submodules https://github.com/agilexrobotics/agx_arm_ros.git
     ```
 
     ```bash
@@ -87,7 +88,7 @@ bash ./agx_arm_install_deps.sh
 
 4. Moveit
 
-    使用 MoveIt 前，需先配置相关依赖。 具体步骤请参考：[agx_arm_moveit](https://github.com/aalicecc/agx_arm_moveit.git)
+    使用 MoveIt 前，需先配置相关依赖。 具体步骤请参考：[agx_arm_moveit](./src/agx_arm_moveit/README.md)
     
     或者依次执行以下命令进行配置：
 
@@ -198,6 +199,61 @@ roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:
 | `enable_timeout` | `5.0` | 使能超时 (秒) | - |
 | `tcp_offset` | `[0.0,0.0,0.0,0.0,0.0,0.0]` | 工具中心(TCP)相对法兰盘中心的偏移 [x,y,z,rx,ry,rz] | - |
 | `log_level` | `info` | 日志级别 | `debug`, `info`, `warn`, `error`, `fatal` |
+
+### URDF 模型可视化
+
+#### 独立查看模型
+
+不需要连接真实机械臂，在 RViz 中加载 URDF 模型并通过 GUI 滑条手动调试关节：
+
+```bash
+roslaunch agx_arm_description display.launch arm_type:=piper
+```
+
+**`arm_type` 参数支持以下三种方式指定模型：**
+
+1. **预设型号名称**（推荐）：直接使用内置型号名，自动匹配对应 URDF 文件
+
+    ```bash
+    roslaunch agx_arm_description display.launch arm_type:=piper
+    ```
+
+2. **相对路径**：相对于 `agx_arm_urdf/` 目录的路径，适用于自定义模型
+
+    ```bash
+    roslaunch agx_arm_description display.launch arm_type:=piper/urdf/piper_description.urdf
+    ```
+
+3. **绝对路径**：直接指定 URDF 文件的绝对路径，适用于任意位置的模型文件
+
+    ```bash
+    roslaunch agx_arm_description display.launch arm_type:=~/catkin_ws/src/agx_arm_ros/src/agx_arm_description/agx_arm_urdf/piper/urdf/piper_description.urdf
+    ```
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `arm_type` | `piper` | 机械臂型号或 URDF 路径，预设值：`piper`, `piper_x`, `piper_l`, `piper_h`, `nero`；也支持 `agx_arm_urdf/` 下的相对路径或任意绝对路径 |
+| `gui` | `true` | 是否启用 joint_state_publisher_gui 关节滑条控制界面 |
+| `rvizconfig` | 内置配置 | 自定义 RViz 配置文件的绝对路径 |
+
+#### 跟随实际机械臂
+
+需先 [启动机械臂驱动](./README.md#启动驱动) ，RViz 中的模型将实时跟随真实机械臂的关节状态（订阅 `feedback/joint_states`）：
+
+```bash
+roslaunch agx_arm_description display_urdf_follow.launch arm_type:=piper/urdf/piper_no_gripper_description.urdf
+```
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `arm_type` | `piper` | 机械臂型号或 URDF 路径（与上方 `display.launch` 用法一致） |
+| `rvizconfig` | 内置配置 | 自定义 RViz 配置文件的绝对路径 |
+
+> **⚠️ 注意：配置一致性**
+>
+> 运行 `display_urdf_follow` 时，选择的 `urdf` 的 **机械臂类型** 和 **末端执行器类型** 必须与 [启动机械臂驱动](./README.md#启动驱动) 中的配置完全一致。
+>
+> -  若两者不匹配，会导致 URDF 模型与实际硬件关节定义不符，进而引发 **TF 树断裂** 或 **部分模型在 RViz 中无法显示**。
 
 ---
 

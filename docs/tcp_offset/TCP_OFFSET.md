@@ -20,8 +20,8 @@
 
     ```bash
     cd ~/catkin_ws
-    source install/setup.bash
-    ros2 launch piper_description display_urdf.launch.py
+    source devel/setup.bash
+    roslaunch agx_arm_description display.launch arm_type:=piper
     ```
 
 2. 在 RViz 界面中操作：
@@ -44,8 +44,8 @@
 
     ```bash
     cd ~/catkin_ws
-    source install/setup.bash
-    ros2 launch nero_description display_urdf.launch.py
+    source devel/setup.bash
+    roslaunch agx_arm_description display.launch arm_type:=nero
     ```
 
 2. 在 RViz 界面中操作：

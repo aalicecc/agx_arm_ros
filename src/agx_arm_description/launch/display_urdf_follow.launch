@@ -1,0 +1,38 @@
+<launch>
+  <!--
+    arm_type resolution order:
+      1. Predefined type name (piper, piper_x, piper_l, piper_h, nero) -> mapped URDF path
+      2. Relative path under agx_arm_urdf/ (if file exists)
+      3. Absolute path (used directly)
+  -->
+  <arg name="arm_type" default="piper"/>
+  <!-- Absolute path to rviz config file -->
+  <arg name="rvizconfig" default="$(find agx_arm_description)/rviz/display.rviz"/>
+
+  <arg name="model_path" default="$(eval
+    find('agx_arm_description') + '/agx_arm_urdf/' +
+    {'piper':   'piper/urdf/piper_description.urdf',
+     'piper_x': 'piper_x/urdf/piper_x_description.urdf',
+     'piper_l': 'piper_l/urdf/piper_l_description.urdf',
+     'piper_h': 'piper_h/urdf/piper_h_description.urdf',
+     'nero':    'nero/urdf/nero_description.urdf'}[arg('arm_type')]
+    if arg('arm_type') in ('piper','piper_x','piper_l','piper_h','nero')
+    else (arg('arm_type')
+          if arg('arm_type').startswith('/')
+          else find('agx_arm_description') + '/agx_arm_urdf/' + arg('arm_type'))
+  )"/>
+
+  <!-- Load robot description from URDF via xacro -->
+  <param name="robot_description" command="xacro $(arg model_path)"/>
+
+  <!-- Publish joint states (placeholder, real states come from feedback topic) -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
+
+  <!-- Publish robot state with joint_states remapped to feedback topic -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+    <remap from="/joint_states" to="feedback/joint_states"/>
+  </node>
+
+  <!-- Launch RViz with the specified config -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" output="screen"/>
+</launch>
