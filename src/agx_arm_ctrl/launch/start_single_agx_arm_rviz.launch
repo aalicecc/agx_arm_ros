@@ -1,55 +1,69 @@
 <launch>
-  <arg name="can_port" default="can0" />
-  <arg name="arm_type" default="piper" />
-  <arg name="effector_type" default="none" />
-  <arg name="auto_enable" default="True" />
-  <arg name="installation_pos" default="horizontal" />
-  <arg name="speed_percent" default="100" />
-  <arg name="pub_rate" default="200" />
-  <arg name="enable_timeout" default="5.0" />
-  <arg name="payload" default="empty" />
-  <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]" />
+  <!-- arg -->
+  <arg name="log_level" default="info" 
+       doc="Logging level (debug, info, warn, error, fatal)." />
+  
+  <arg name="can_port" default="can0" 
+       doc="CAN port to be used by the AGX Arm node." />
+  
+  <arg name="arm_type" default="piper" 
+       doc="Robotic arm type (e.g. nero, piper, piper_h, piper_l, piper_x)." />
+  
+  <arg name="effector_type" default="none" 
+       doc="End effector type (e.g. agx_gripper, revo2)." />
+  
+  <arg name="revo2_type" default="left" 
+       doc="Revo2 end effector type (e.g. left, right)." />
+  
+  <arg name="auto_enable" default="true" 
+       doc="Automatically enable the AGX Arm node." />
+  
+  <arg name="installation_pos" default="horizontal" 
+       doc="Installation position of the arm (e.g. horizontal, left, right)." />
+  
+  <arg name="speed_percent" default="100" 
+       doc="Movement speed as a percentage of maximum speed." />
+  
+  <arg name="pub_rate" default="200" 
+       doc="Publishing rate for the AGX Arm node." />
+  
+  <arg name="enable_timeout" default="5.0" 
+       doc="Timeout in seconds for arm enable/disable operations." />
+  
+  <arg name="payload" default="empty" 
+       doc="Payload type (e.g. empty, half, full)." />
+  
+  <arg name="follow" default="true" 
+       doc="Follow real arm state." />
+  
+  <arg name="control" default="false" 
+       doc="Whether to publish control topics from the RViz-side joint state publisher." />
+  
+  <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]" 
+       doc="TCP offset in x, y, z, roll, pitch, yaw in meters/radians." />
 
-  <!-- Select the corresponding description launch based on arm_type -->
-  <include file="$(find piper_description)/launch/piper_with_gripper/display_xacro.launch"
-           if="$(eval arg('arm_type') == 'piper')">
-    <arg name="gui" value="true" />
+  <!-- description:统一使用 agx_arm_description/launch/display.launch -->
+  <include file="$(find agx_arm_description)/launch/display.launch">
+    <arg name="arm_type" value="$(arg arm_type)" />
+    <arg name="effector_type" value="$(arg effector_type)" />
+    <arg name="revo2_type" value="$(arg revo2_type)" />
+    <arg name="pub_rate" value="$(arg pub_rate)" />
+    <arg name="follow" value="$(arg follow)" />
+    <arg name="tcp_offset" value="$(arg tcp_offset)" />
+    <arg name="control" value="$(arg control)" />
   </include>
 
-  <include file="$(find nero_description)/launch/display_xacro.launch"
-           if="$(eval arg('arm_type') == 'nero')">
-    <arg name="gui" value="true" />
+  <!-- agx_arm -->
+  <include file="$(find agx_arm_ctrl)/launch/start_single_agx_arm.launch">
+    <arg name="can_port" value="$(arg can_port)" />
+    <arg name="pub_rate" value="$(arg pub_rate)" />
+    <arg name="auto_enable" value="$(arg auto_enable)" />
+    <arg name="arm_type" value="$(arg arm_type)" />
+    <arg name="speed_percent" value="$(arg speed_percent)" />
+    <arg name="enable_timeout" value="$(arg enable_timeout)" />
+    <arg name="installation_pos" value="$(arg installation_pos)" />
+    <arg name="effector_type" value="$(arg effector_type)" />
+    <arg name="payload" value="$(arg payload)" />
+    <arg name="tcp_offset" value="$(arg tcp_offset)" />
   </include>
-
-  <include file="$(find piper_x_description)/launch/display_xacro.launch"
-           if="$(eval arg('arm_type') == 'piper_x')">
-    <arg name="gui" value="true" />
-  </include>
-
-  <include file="$(find piper_h_description)/launch/display_xacro.launch"
-           if="$(eval arg('arm_type') == 'piper_h')">
-    <arg name="gui" value="true" />
-  </include>
-
-  <include file="$(find piper_l_description)/launch/display_xacro.launch"
-           if="$(eval arg('arm_type') == 'piper_l')">
-    <arg name="gui" value="true" />
-  </include>
-
-  <!-- node -->
-  <node pkg="agx_arm_ctrl" type="agx_arm_ctrl_single_node.py" name="agx_arm_ctrl_single_node" output="screen">
-    <param name="can_port" value="$(arg can_port)" />
-    <param name="arm_type" value="$(arg arm_type)" />
-    <param name="effector_type" value="$(arg effector_type)" />
-    <param name="auto_enable" value="$(arg auto_enable)" />
-    <param name="installation_pos" value="$(arg installation_pos)" />
-    <param name="speed_percent" value="$(arg speed_percent)" />
-    <param name="pub_rate" value="$(arg pub_rate)" />
-    <param name="enable_timeout" value="$(arg enable_timeout)" />
-    <param name="payload" value="$(arg payload)" />
-    <rosparam param="tcp_offset" subst_value="true">$(arg tcp_offset)</rosparam>
-
-    <remap from="/control/joint_states" to="/joint_states" />
-  </node>
 </launch>
-

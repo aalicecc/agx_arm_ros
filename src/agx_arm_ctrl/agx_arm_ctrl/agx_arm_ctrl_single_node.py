@@ -21,24 +21,26 @@ from agx_arm_ctrl.effector import AgxGripperWrapper, Revo2Wrapper
 
 GRIPPER_JOINT_NAME = "gripper"
 
-FINGER_CONFIG = [
-    ("joint1_1", "thumb_base"),
-    ("joint1_2", "thumb_tip"),
-    ("joint2", "index_finger"),
-    ("joint3", "middle_finger"),
-    ("joint4", "ring_finger"),
-    ("joint5", "pinky_finger"),
+REVO2_FINGER_CONFIG = [
+    # (joint_name, attribute_name, max_angle)
+    ("thumb_metacarpal_joint", "thumb_base", 1.57),
+    ("thumb_proximal_joint", "thumb_tip", 1.03),
+    ("index_proximal_joint", "index_finger", 1.41),
+    ("middle_proximal_joint", "middle_finger", 1.41),
+    ("ring_proximal_joint", "ring_finger", 1.41),
+    ("pinky_proximal_joint", "pinky_finger", 1.41),
 ]
 
-LEFT_HAND_JOINT_NAMES = [f"l_f_{suffix}" for suffix, _ in FINGER_CONFIG]
-RIGHT_HAND_JOINT_NAMES = [f"r_f_{suffix}" for suffix, _ in FINGER_CONFIG]
-HAND_JOINT_NAMES = LEFT_HAND_JOINT_NAMES + RIGHT_HAND_JOINT_NAMES
+REVO2_LEFT_HAND_JOINT_NAMES = [f"left_{suffix}" for suffix, _, _ in REVO2_FINGER_CONFIG]
+REVO2_RIGHT_HAND_JOINT_NAMES = [f"right_{suffix}" for suffix, _, _ in REVO2_FINGER_CONFIG]
+REVO2_HAND_JOINT_NAMES = REVO2_LEFT_HAND_JOINT_NAMES + REVO2_RIGHT_HAND_JOINT_NAMES
 
-HAND_JOINT_TO_FINGER_ATTR = {
-    f"{prefix}{suffix}": attr
-    for prefix in ("l_f_", "r_f_")
-    for suffix, attr in FINGER_CONFIG
+REVO2_HAND_JOINT_TO_FINGER_ATTR = {
+    f"{prefix}{suffix}": (attr, max_angle)
+    for prefix in ("left_", "right_")
+    for suffix, attr, max_angle in REVO2_FINGER_CONFIG
 }
+
 MIN_SEAMLESS_VERSION = (1, 8, 5)  # S-V1.8-5
 
 from typing import TYPE_CHECKING
@@ -96,6 +98,7 @@ class AgxArmRosNode(object):
         self.payload = rospy.get_param("~payload", "empty")
         self.effector_type = rospy.get_param("~effector_type", "none")
         self.tcp_offset = rospy.get_param("~tcp_offset", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.publish_gripper_joint = rospy.get_param("~publish_gripper_joint",True)
 
     def _log_parameters(self):
         rospy.loginfo(f"can_port: {self.can_port}")
@@ -116,6 +119,7 @@ class AgxArmRosNode(object):
         self.agx_arm = AgxArmFactory.create_arm(config)
         self.agx_arm.connect()
         self.is_piper = "piper" in self.arm_type
+        self.is_nero = "nero" in self.arm_type
         self.arm_joint_names = list(config["joint_limits"].keys())
         self.arm_joint_count = self.agx_arm.joint_nums
         self.agx_arm.set_speed_percent(self.speed_percent)
@@ -130,6 +134,8 @@ class AgxArmRosNode(object):
                 current_version = self._parse_firmware_version(self.firmware['software_version'])
                 if current_version < MIN_SEAMLESS_VERSION:
                     self.is_switch_seamlessly = False
+        elif self.is_nero:
+            self.agx_arm.set_normal_mode()
 
     def _init_effector(self):
         self.gripper: Optional[AgxGripperWrapper] = None
@@ -163,6 +169,13 @@ class AgxArmRosNode(object):
         self.arm_status_pub = rospy.Publisher(
             "/feedback/arm_status", AgxArmStatus, queue_size=1
         )
+        self.leader_joint_angles_pub = rospy.Publisher(
+            "/feedback/leader_joint_angles", JointState, queue_size=1
+        )
+        if self.gripper is not None:
+            self.gripper_status_pub = rospy.Publisher(
+                "/feedback/gripper_status", GripperStatus, queue_size=1
+            )
         if self.hand is not None:
             self.hand_status_pub = rospy.Publisher(
                 "/feedback/hand_status", HandStatus, queue_size=1
@@ -186,19 +199,18 @@ class AgxArmRosNode(object):
         rospy.Subscriber(
             "/control/move_p", PoseStamped, self._move_p_callback, queue_size=1
         )
-        if self.is_piper:
-            rospy.Subscriber(
-                "/control/move_l", PoseStamped, self._move_l_callback, queue_size=1
-            )
-            rospy.Subscriber(
-                "/control/move_c", PoseArray, self._move_c_callback, queue_size=1
-            )
-            rospy.Subscriber(
-                "/control/move_js", JointState, self._move_js_callback, queue_size=1
-            )
-            rospy.Subscriber(
-                "/control/move_mit", MoveMITMsg, self._move_mit_callback, queue_size=1
-            )
+        rospy.Subscriber(
+            "/control/move_l", PoseStamped, self._move_l_callback, queue_size=1
+        )
+        rospy.Subscriber(
+            "/control/move_c", PoseArray, self._move_c_callback, queue_size=1
+        )
+        rospy.Subscriber(
+            "/control/move_js", JointState, self._move_js_callback, queue_size=1
+        )
+        rospy.Subscriber(
+            "/control/move_mit", MoveMITMsg, self._move_mit_callback, queue_size=1
+        )
         if self.hand is not None:
             rospy.Subscriber(
                 "/control/hand", HandCmd, self._hand_cmd_callback, queue_size=1
@@ -215,7 +227,6 @@ class AgxArmRosNode(object):
             rospy.Service("/exit_teach_mode", Empty, self._exit_teach_mode_callback)
 
     ### utility methods
-
     def _parse_firmware_version(self, version_str: str) -> Tuple[int, int, int]:
         if not version_str:
             return (0, 0, 0)
@@ -303,6 +314,8 @@ class AgxArmRosNode(object):
                     f"Timeout waiting for arm to {action_name} after {timeout} seconds"
                 )
                 return False
+            if self.is_nero:
+                self.agx_arm.set_normal_mode()
             time.sleep(0.01)
         
         joints_status = self.agx_arm.get_joint_enable_status(255)
@@ -319,7 +332,6 @@ class AgxArmRosNode(object):
         return True
 
     ### publisher thread
-
     def _publish_thread(self):
         rate = rospy.Rate(self.pub_rate)
 
@@ -334,12 +346,10 @@ class AgxArmRosNode(object):
                 self._publish_pose()
                 self._publish_arm_status()
                 self._publish_effector_status()
-                if self.is_piper:
-                    self._publish_master_joint_angles()
+                self._publish_leader_joint_angles()
             rate.sleep()
     
     ### publish methods
-
     def _get_gripper_joint_data(self):
         if self.gripper is None or not self.gripper.is_ok():
             return []
@@ -348,11 +358,13 @@ class AgxArmRosNode(object):
             return []
 
         gripper_joint_map = {
-            GRIPPER_JOINT_NAME:    1.0,
             "gripper_joint1":     0.5,
             "gripper_joint2":    -0.5,
         }
-            
+
+        if self.publish_gripper_joint:
+            gripper_joint_map[GRIPPER_JOINT_NAME] = 1.0
+
         return [
             (name, status.width * scale, 0.0, status.force)
             for name, scale in gripper_joint_map.items()
@@ -364,16 +376,30 @@ class AgxArmRosNode(object):
         finger_pos = self.hand.get_finger_position()
         if finger_pos is None:
             return []
-        joint_names = LEFT_HAND_JOINT_NAMES if self.hand.is_hand_left() else RIGHT_HAND_JOINT_NAMES
-        return [
-            (joint_name, getattr(finger_pos, HAND_JOINT_TO_FINGER_ATTR[joint_name], 0) * 1.0, 0.0, 0.0)
-            for joint_name in joint_names
-        ]
-
+        joint_names = REVO2_LEFT_HAND_JOINT_NAMES if self.hand.is_hand_left() else REVO2_RIGHT_HAND_JOINT_NAMES
+        
+        result = []
+        for joint_name in joint_names:
+            attr = REVO2_HAND_JOINT_TO_FINGER_ATTR[joint_name][0]
+            max_angle = REVO2_HAND_JOINT_TO_FINGER_ATTR[joint_name][1]
+            joint_value = max(0.0, min(max_angle, getattr(finger_pos, attr, 0) * max_angle / 100))
+            result.append((joint_name, joint_value, 0.0, 0.0))
+        
+        return result
+        
     def _publish_joint_states(self):
         joint_states = self.agx_arm.get_joint_angles()
         if joint_states is None or joint_states.hz <= 0:
             return
+
+        velocitys = []
+        efforts = []
+        for joint_index in range(1, self.arm_joint_count+1):
+            ms = self.agx_arm.get_motor_states(joint_index)
+            if ms is None:
+                return
+            velocitys.append(ms.msg.velocity)
+            efforts.append(ms.msg.torque)
 
         msg = JointState()
         msg.header.stamp = rospy.Time.from_sec(joint_states.timestamp)
@@ -381,8 +407,8 @@ class AgxArmRosNode(object):
         joints_data = []
         # arm 
         joints_data.extend(
-            (joint_name, joint_state, 0.0, 0.0)
-            for joint_name, joint_state in zip(self.arm_joint_names, joint_states.msg)
+            (joint_name, joint_state, velocity, effort)
+            for joint_name, joint_state, velocity, effort in zip(self.arm_joint_names, joint_states.msg, velocitys, efforts)
         )
         # gripper
         joints_data.extend(self._get_gripper_joint_data())
@@ -432,18 +458,18 @@ class AgxArmRosNode(object):
 
         self.arm_status_pub.publish(msg)
 
-    def _publish_master_joint_angles(self):
-        master_joint_angles = self.agx_arm.get_master_joint_angles()
-        if master_joint_angles is None:
+    def _publish_leader_joint_angles(self):
+        leader_joint_angles = self.agx_arm.get_leader_joint_angles()
+        if leader_joint_angles is None:
             return
 
         msg = JointState()
-        msg.header.stamp = rospy.Time.from_sec(master_joint_angles.timestamp)
+        msg.header.stamp = rospy.Time.from_sec(leader_joint_angles.timestamp)
         msg.name = self.arm_joint_names
-        msg.position = master_joint_angles.msg
+        msg.position = leader_joint_angles.msg
         msg.velocity = [0.0] * self.arm_joint_count
         msg.effort = [0.0] * self.arm_joint_count
-        self.master_joint_angles_pub.publish(msg)
+        self.leader_joint_angles_pub.publish(msg)
 
     def _publish_gripper_status(self):
         status = self.gripper.get_status()
@@ -493,7 +519,6 @@ class AgxArmRosNode(object):
             self._publish_hand_status()
 
     ### arm control callbacks
-
     def _control_arm_joints(self, joint_pos):
         arm_joints = {
             name : value
@@ -512,8 +537,8 @@ class AgxArmRosNode(object):
         # gripper_name → width scale
         gripper_joint_map = {
             GRIPPER_JOINT_NAME:   1.0,
-            "gripper_joint2":    2.0,
             "gripper_joint1":    2.0,
+            "gripper_joint2":    2.0,
         }
 
         matched = next(
@@ -536,9 +561,9 @@ class AgxArmRosNode(object):
 
     def _control_hand_joints(self, joint_pos):
         hand_joints = {
-            name : int(value)
+            name : max(0, min(100, int(value / REVO2_HAND_JOINT_TO_FINGER_ATTR[name][1] * 100)))
             for name, value in joint_pos.items()
-            if name in HAND_JOINT_NAMES
+            if name in REVO2_HAND_JOINT_NAMES
         }
         if not hand_joints:
             return
@@ -547,9 +572,9 @@ class AgxArmRosNode(object):
             rospy.logwarn("revo2 hand not initialized")
             return
         finger_kwargs = {
-            HAND_JOINT_TO_FINGER_ATTR[name] : value
+            REVO2_HAND_JOINT_TO_FINGER_ATTR[name][0] : value
             for name, value in hand_joints.items()
-            if name in HAND_JOINT_TO_FINGER_ATTR
+            if name in REVO2_HAND_JOINT_TO_FINGER_ATTR
         }
         if finger_kwargs:
             try:
@@ -593,9 +618,6 @@ class AgxArmRosNode(object):
         self.is_mit_mode = False
 
     def _move_l_callback(self, msg: PoseStamped):
-        if not self.is_piper:
-            rospy.logwarn("move_l just piper series supported")
-            return
         if not self._check_can_control():
             return
 
@@ -604,10 +626,12 @@ class AgxArmRosNode(object):
         self.is_mit_mode = False
 
     def _move_c_callback(self, msg: PoseArray):
-        if not self.is_piper:
-            rospy.logwarn("move_c just piper series supported")
-            return
         if not self._check_can_control():
+            return
+        if len(msg.poses) < 3:
+            self.get_logger().error(
+                f"move_c requires at least 3 poses, but got {len(msg.poses)}"
+            )
             return
 
         pose_start = self._create_pose_cmd(msg.poses[0])
@@ -617,9 +641,6 @@ class AgxArmRosNode(object):
         self.is_mit_mode = False
 
     def _move_js_callback(self, msg: JointState):
-        if not self.is_piper:
-            rospy.logwarn("move_js just piper series supported")
-            return
         if not self._check_can_control():
             return
 
@@ -631,9 +652,6 @@ class AgxArmRosNode(object):
         self.is_mit_mode = True
 
     def _move_mit_callback(self, msg: MoveMITMsg):
-        if not self.is_piper:
-            rospy.logwarn("move_mit just piper series supported")
-            return
         if not self._check_can_control():
             return
         
@@ -672,7 +690,6 @@ class AgxArmRosNode(object):
         self.is_mit_mode = True
 
     ### effector control callbacks
-
     def _hand_position_time_cmd_callback(self, msg: HandPositionTimeCmd):
         if self.hand is None:
             rospy.logwarn("revo2 hand not initialized")
@@ -729,7 +746,6 @@ class AgxArmRosNode(object):
             rospy.logerr(f"hand control param error: {e}")
 
     ### service callbacks
-
     def _enable_callback(self, request):
         response = SetBoolResponse()
         try:

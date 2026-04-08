@@ -8,6 +8,14 @@ rostopic pub /control/move_j sensor_msgs/JointState "$(cat test/nero/test_move_j
 rostopic pub /control/move_p geometry_msgs/PoseStamped "$(cat test/nero/test_move_p.yaml)" -1
 ```
 
+```bash
+rostopic pub /control/move_l geometry_msgs/PoseStamped "$(cat test/nero/test_move_l.yaml)" -1
+```
+
+```bash
+rostopic pub /control/move_c geometry_msgs/PoseArray "$(cat test/nero/test_move_c.yaml)" -1
+```
+
 ## Piper Command Test
 
 ```bash

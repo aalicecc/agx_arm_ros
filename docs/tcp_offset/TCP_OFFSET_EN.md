@@ -1,5 +1,7 @@
 # TCP Offset Configuration
 
+[中文](./TCP_OFFSET.md)
+
 This document details the definition, units of the `tcp_offset` parameter, and the steps to view the flange center coordinate system via RViz, helping you accurately configure the Tool Center Point (TCP) offset.
 
 ## 1. Definition of tcp_offset Parameter
@@ -15,46 +17,69 @@ The 6 values of `tcp_offset` correspond to: `[x, y, z, rx, ry, rz]` in sequence.
 
 Follow the steps below to visually check the flange center coordinate system of the robotic arm in RViz, which serves as a reference for TCP offset configuration.
 
-### 2.1 Piper Robotic Arm
+### 2.1 Launch RViz Visualization
 
-1. Open a terminal window and execute the corresponding commands to launch RViz visualization.
-    ```bash
-    cd ~/catkin_ws
-    source devel/setup.bash
-    roslaunch agx_arm_description display.launch arm_type:=piper
-    ```
+Open a terminal window and run:
 
-2. Operations in the RViz interface:
-    - Step 1: Select the correct coordinate system (refer to the screenshot)
+```bash
+cd ~/agx_arm_ws
+source devel/setup.bash
+```
 
-        ![piper_rviz_tcp_2](../../asserts/pictures/piper_rviz_tcp_2.png)
+```bash
+# Piper arm
+roslaunch agx_arm_description display.launch arm_type:=piper
+```
 
-    - Step 2: Expand the `RobotModel` in the left panel and enable the `Links` option
+```bash
+# Nero arm
+roslaunch agx_arm_description display.launch arm_type:=nero
+```
 
-        ![piper_rviz_tcp_3](../../asserts/pictures/piper_rviz_tcp_3.png)
-    
-    - Step 3: Check the link you need to view in `Links` to display its coordinate system, and disable the display of other unnecessary links
+```bash
+# Other arm types (piper_x, piper_l, piper_h)
+roslaunch agx_arm_description display.launch arm_type:=piper_x
+```
 
-        ![piper_rviz_tcp_4](../../asserts/pictures/piper_rviz_tcp_4.png)
+With end-effector:
 
-### 2.2 Nero Robotic Arm
+```bash
+# Piper + Gripper
+roslaunch agx_arm_description display.launch arm_type:=piper effector_type:=agx_gripper
+```
 
-1. Open a terminal window and execute the corresponding commands to launch RViz visualization.
-    ```bash
-    cd ~/catkin_ws
-    source devel/setup.bash
-    roslaunch agx_arm_description display.launch arm_type:=nero
-    ```
+```bash
+# Nero + Dexterous hand
+roslaunch agx_arm_description display.launch arm_type:=nero effector_type:=revo2 revo2_type:=left
+```
 
-2. Operations in the RViz interface:
-    - Step 1: Select the correct coordinate system (refer to the screenshot)
-    
-        ![nero_rviz_tcp_1](../../asserts/pictures/nero_rviz_tcp_1.png)
+### 2.2 View Coordinate Frames
 
-    - Step 2: Expand the `RobotModel` in the left panel and enable the `Links` option
-    
-        ![nero_rviz_tcp_2](../../asserts/pictures/nero_rviz_tcp_2.png)
+In the RViz interface, TF display is enabled by default, allowing you to see all coordinate frames (including the flange `link6`/`link7`).
 
-    - Step 3: Check the link you need to view in `Links` to display its coordinate system, and disable the display of other unnecessary links
+You can also expand `RobotModel` → `Links` in the left panel and check the links you need to view their axes:
 
-        ![nero_rviz_tcp_3](../../asserts/pictures/nero_rviz_tcp_3.png)
+**Piper arm example:**
+
+![piper_rviz_tcp_1](../../asserts/pictures/piper_rviz_tcp_1.png)
+![piper_rviz_tcp_2](../../asserts/pictures/piper_rviz_tcp_2.png)
+![piper_rviz_tcp_3](../../asserts/pictures/piper_rviz_tcp_3.png)
+
+## 3. Preview TCP Offset in RViz
+
+`display.launch` supports the `tcp_offset` parameter. When set, a `tcp_link` coordinate frame is automatically displayed in RViz:
+
+```bash
+# Display tcp_link 0.12m in front of link6
+roslaunch agx_arm_description display.launch arm_type:=piper effector_type:=agx_gripper tcp_offset:='[0.0, 0.0, 0.12, 0.0, 0.0, 0.0]'
+```
+
+The parameter format is `[x, y, z, rx, ry, rz]`, all values must be floating-point numbers, with units as defined in [Section 1](#1-definition-of-tcp_offset-parameter).
+
+> **Tip:** MoveIt also supports the `tcp_offset` parameter. When set, the planning target and interactive marker align with the TCP position:
+>
+> ```bash
+> roslaunch agx_arm_moveit demo.launch arm_type:=piper effector_type:=agx_gripper tcp_offset:='[0.0, 0.0, 0.12, 0.0, 0.0, 0.0]'
+> ```
+
+![piper_rviz_tcp_4](../../asserts/pictures/piper_rviz_tcp_4.png)
