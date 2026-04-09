@@ -12,9 +12,10 @@
 
 |说明 |文档|
 |---|---|
-|官方can模块的使用|[can_user](./docs/CAN_USER.md)|
+|SDK|[pyAgxArm](https://github.com/agilexrobotics/pyAgxArm)|
+|官方CAN模块的使用|[can_user](./docs/CAN_USER.md)|
 |TCP偏移设置|[tcp_offset](./docs/tcp_offset/TCP_OFFSET.md)|
-|Moveit| [Moveit](./src/agx_arm_moveit/README.md) |
+|URDF|[URDF](https://github.com/agilexrobotics/agx_arm_urdf)|
 |Q&A|[Q&A](./docs/Q&A.md)|
 
 ---
@@ -34,8 +35,8 @@ pip3 install .
 1. 创建工作空间
 
     ```bash
-    mkdir -p ~/catkin_ws/src
-    cd ~/catkin_ws/src
+    mkdir -p ~/agx_arm_ws/src
+    cd ~/agx_arm_ws/src
     ```
 
 2. 克隆仓库
@@ -54,7 +55,7 @@ pip3 install .
 运行脚本一键安装所有依赖
 
 ```bash
-cd ~/catkin_ws/src/agx_arm_ros/scripts/
+cd ~/agx_arm_ws/src/agx_arm_ros/scripts/
 chmod +x agx_arm_install_deps.sh
 bash ./agx_arm_install_deps.sh
 ```
@@ -86,32 +87,6 @@ bash ./agx_arm_install_deps.sh
         ros-$ROS_DISTRO-xacro
     ```
 
-4. Moveit
-
-    使用 MoveIt 前，需先配置相关依赖。 具体步骤请参考：[agx_arm_moveit](./src/agx_arm_moveit/README.md)
-    
-    或者依次执行以下命令进行配置：
-
-    ```bash
-    sudo apt install ros-$ROS_DISTRO-moveit*
-    ```
-
-    ```bash
-    sudo apt-get install -y \
-        ros-$ROS_DISTRO-control* \
-        ros-$ROS_DISTRO-joint-trajectory-controller \
-        ros-$ROS_DISTRO-joint-state-* \
-        ros-$ROS_DISTRO-ros-controllers \
-        ros-$ROS_DISTRO-trajectory-msgs
-    ```
-
-    若系统语言区域设置不为英文区域，须设置为英文区域
-
-    ```bash
-    echo "export LC_NUMERIC=en_US.UTF-8" >> ~/.bashrc
-    source ~/.bashrc
-    ```
-
 ### 4.编译并Source工作空间
 
 检查是否在虚拟环境里，如果是，建议先退出虚拟环境。
@@ -123,7 +98,7 @@ which pip3
 编译工作空间并加载环境配置：
 
 ```bash
-cd ~/catkin_ws
+cd ~/agx_arm_ws
 catkin_make
 source devel/setup.bash
 ```
@@ -141,7 +116,7 @@ source devel/setup.bash
 打开一个终端窗口，执行以下命令：
 
 ```bash
-cd ~/catkin_ws/src/agx_arm_ros/scripts 
+cd ~/agx_arm_ws/src/agx_arm_ros/scripts 
 bash can_activate.sh
 ```
 
@@ -182,78 +157,108 @@ rosrun agx_arm_ctrl agx_arm_ctrl_single_node.py _can_port:=can0 _arm_type:=piper
 roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:=piper effector_type:=none tcp_offset:='[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]'
 ```
 
-> **注意：** `start_single_agx_arm_rviz.launch` 会持续占用 `/joint_states` 话题，导致 [控制示例](#控制示例) 中的控制指令无法正常运行。如需执行控制指令，请先关闭此 launch。
+> **注意：**
+> - `start_single_agx_arm_rviz.launch` 会订阅 `/feedback/joint_states` 话题；通过参数 `control` 可控制是否从 RViz 侧发布 `/control/joint_states`（默认 `control:=false`，不会从 RViz 发布控制话题）。
+> - 若希望仅用于可视化跟随真实机械臂状态，推荐保持 `control:=false`；
+> - 若希望使用 RViz 自带的关节滑条控制 `/control/joint_states`，可显式设置 `control:=true`，此时可能会与 [控制示例](#控制示例) 中的控制指令产生冲突。
 
 ### 启动参数
 
 | 参数 | 默认值 | 说明 | 可选值 |
 |------|--------|------|--------|
 | `can_port` | `can0` | CAN 端口 | - |
-| `arm_type` | `piper` | 机械臂型号 | `piper`, `piper_h`, `piper_l`, `piper_x`, `nero` |
+| `arm_type` | `piper` | 机械臂型号 | `nero`, `piper`, `piper_h`, `piper_l`, `piper_x` |
 | `effector_type` | `none` | 末端执行器类型 | `none`, `agx_gripper`, `revo2` |
-| `auto_enable` | `True` | 启动时自动使能 | `True`, `False` |
+| `revo2_type` | `left` | Revo2 灵巧手类型 | `left`, `right` |
+| `auto_enable` | `true` | 启动时自动使能 | `true`, `false` |
 | `installation_pos` | `horizontal` | 安装方向 (Piper 系列专用) | `horizontal`, `left`, `right` |
 | `payload` | `empty` | 负载配置 (暂时只对piper系列生效) | `full`, `half`, `empty` |
 | `speed_percent` | `100` | 运动速度 (%) | `0-100` |
 | `pub_rate` | `200` | 状态发布频率 (Hz) | - |
 | `enable_timeout` | `5.0` | 使能超时 (秒) | - |
-| `tcp_offset` | `[0.0,0.0,0.0,0.0,0.0,0.0]` | 工具中心(TCP)相对法兰盘中心的偏移 [x,y,z,rx,ry,rz] | - |
-| `log_level` | `info` | 日志级别 | `debug`, `info`, `warn`, `error`, `fatal` |
+| `tcp_offset` | `[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]` | 工具中心(TCP)相对法兰盘中心的偏移 [x, y, z, rx, ry, rz] | - |
+| `publish_gripper_joint` | `true` | 是否在 `/feedback/joint_states` 中发布 `gripper` 关节（夹爪开口宽度）。与 MoveIt 联用时设为 `false`，因 URDF 中仅有 `gripper_joint1`/`gripper_joint2` | `true`, `false` |
 
 ### URDF 模型可视化
 
 #### 独立查看模型
 
-不需要连接真实机械臂，在 RViz 中加载 URDF 模型并通过 GUI 滑条手动调试关节：
+在 RViz 中加载 URDF 模型并通过 GUI 滑条手动调试关节，可以不启动机械臂节点：
 
 ```bash
 roslaunch agx_arm_description display.launch arm_type:=piper
 ```
 
-**`arm_type` 参数支持以下三种方式指定模型：**
+**支持以下三种方式指定模型：**
 
-1. **预设型号名称**（推荐）：直接使用内置型号名，自动匹配对应 URDF 文件
+1. **预设型号名称（通过 `arm_type` 指定）**（推荐）：直接使用内置型号名，自动匹配对应 URDF 文件
 
     ```bash
     roslaunch agx_arm_description display.launch arm_type:=piper
     ```
 
-2. **相对路径**：相对于 `agx_arm_urdf/` 目录的路径，适用于自定义模型
+2. **相对路径（通过 `custom_model` 指定）**：相对于 `agx_arm_urdf/` 目录的路径，适用于自定义模型  
 
     ```bash
-    roslaunch agx_arm_description display.launch arm_type:=piper/urdf/piper_description.urdf
+    roslaunch agx_arm_description display.launch custom_model:=piper/urdf/piper_description.urdf
     ```
 
-3. **绝对路径**：直接指定 URDF 文件的绝对路径，适用于任意位置的模型文件
+3. **绝对路径（通过 `custom_model` 指定）**：直接指定 URDF 文件的绝对路径，适用于任意位置的模型文件
 
     ```bash
-    roslaunch agx_arm_description display.launch arm_type:=~/catkin_ws/src/agx_arm_ros/src/agx_arm_description/agx_arm_urdf/piper/urdf/piper_description.urdf
+    roslaunch agx_arm_description display.launch custom_model:=~/agx_arm_ws/src/agx_arm_ros/src/agx_arm_description/agx_arm_urdf/piper/urdf/piper_description.urdf
     ```
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `arm_type` | `piper` | 机械臂型号或 URDF 路径，预设值：`piper`, `piper_x`, `piper_l`, `piper_h`, `nero`；也支持 `agx_arm_urdf/` 下的相对路径或任意绝对路径 |
+| `arm_type` | `piper` | 机械臂型号，预设值：`nero`, `piper`, `piper_h`, `piper_l`, `piper_x` |
+| `custom_model` | 空字符串 | 可选自定义模型路径；相对路径时相对于 `agx_arm_urdf/` 目录，绝对路径可指向任意 URDF/xacro 文件。若设置该参数，则 `arm_type` 和 `effector_type` 将被忽略 |
+| `effector_type` | `none` | 末端执行器类型，预设值：`none`, `agx_gripper`, `revo2` |
+| `revo2_type` | `left` | Revo2 灵巧手类型，预设值：`left`, `right` |
+| `pub_rate` | `200` | 状态发布频率 (Hz) |
 | `gui` | `true` | 是否启用 joint_state_publisher_gui 关节滑条控制界面 |
 | `rvizconfig` | 内置配置 | 自定义 RViz 配置文件的绝对路径 |
+| `follow` | `false` | 是否跟随真实机械臂状态（订阅 `/feedback/joint_states`，并在 robot_state_publisher 中重映射 `/joint_states` 为 `feedback/joint_states`） |
+| `tcp_offset` | `[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]` | TCP 偏移 [x, y, z, rx, ry, rz]（米/弧度）。非零时自动发布 `tcp_link` 坐标系 |
+| `control` | `true` | 是否通过 joint_state_publisher（或 GUI 版本）发布控制话题：`true` 时发布到 `control/joint_states`；`false` 时仅用于跟随或显示，不发布控制话题。与 `follow:=true` 配合时，常用组合为 `follow:=true, control:=false`（只跟随真实机械臂，不从 RViz 发出控制） |
 
-#### 跟随实际机械臂
+#### 典型应用组合示例（follow / control）
 
-需先 [启动机械臂驱动](./README.md#启动驱动) ，RViz 中的模型将实时跟随真实机械臂的关节状态（订阅 `feedback/joint_states`）：
+下面给出几种**常见使用场景**下，`follow` 与 `control` 的推荐组合及对应示例指令：
 
-```bash
-roslaunch agx_arm_description display_urdf_follow.launch arm_type:=piper/urdf/piper_no_gripper_description.urdf
-```
+- **场景 1：纯模型调试（无真机，仅看 URDF、用滑条拖动）**  
+  - 是否需要真机：否  
+  - 推荐配置：`follow:=false, control:=true`  
+  - 示例：  
+    ```bash
+    roslaunch agx_arm_description display.launch arm_type:=piper follow:=false control:=true
+    ```
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `arm_type` | `piper` | 机械臂型号或 URDF 路径（与上方 `display.launch` 用法一致） |
-| `rvizconfig` | 内置配置 | 自定义 RViz 配置文件的绝对路径 |
+- **场景 2：真机 + 仅控制不跟随**（从 RViz 发控制，但 RViz 不显示真实反馈）  
+  - 是否需要真机：是  
+  - 推荐配置：`follow:=false, control:=true`  
+  - 示例：  
+    ```bash
+    roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:=piper follow:=false control:=true
+    ```
 
-> **⚠️ 注意：配置一致性**
->
-> 运行 `display_urdf_follow` 时，选择的 `urdf` 的 **机械臂类型** 和 **末端执行器类型** 必须与 [启动机械臂驱动](./README.md#启动驱动) 中的配置完全一致。
->
-> -  若两者不匹配，会导致 URDF 模型与实际硬件关节定义不符，进而引发 **TF 树断裂** 或 **部分模型在 RViz 中无法显示**。
+- **场景 3：真机 + 仅跟随不控制**（常见：只看状态，不希望 RViz 干扰控制）  
+  - 是否需要真机：是  
+  - 推荐配置：`follow:=true, control:=false`  
+  - 示例：  
+    ```bash
+    roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:=piper follow:=true control:=false
+    ```
+
+- **场景 4：真机 + 控制 + 跟随**（从 RViz 发控制，并在 RViz 跟随真实反馈）  
+  - 是否需要真机：是  
+  - 推荐配置：`follow:=true, control:=false`
+  - 示例：  
+    ```bash
+    roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:=piper follow:=true control:=true
+    ```
+
+> **提示：** 一般情况下，建议**控制通道保持唯一**，即只保留一个组件负责发布 `/control/*` 话题（如 `agx_arm_ctrl` 节点、MoveIt、或 RViz 中的 joint_state_publisher 三者选其一），以避免多源控制导致冲突。
 
 ---
 
@@ -262,7 +267,7 @@ roslaunch agx_arm_description display_urdf_follow.launch arm_type:=piper/urdf/pi
 额外启动一个终端,运行以下指令:
 
 ```bash
-cd ~/catkin_ws
+cd ~/agx_arm_ws
 source devel/setup.bash
 cd src/agx_arm_ros
 ```
@@ -313,6 +318,20 @@ cd src/agx_arm_ros
       "$(cat test/nero/test_move_p.yaml)" -1
     ```
 
+3. 直线运动
+
+    ```bash
+    rostopic pub /control/move_l geometry_msgs/PoseStamped \
+      "$(cat test/nero/test_move_l.yaml)" -1
+    ```
+
+4. 圆弧运动（起点 → 中间点 → 终点）
+
+    ```bash
+    rostopic pub /control/move_c geometry_msgs/PoseArray \
+      "$(cat test/nero/test_move_c.yaml)" -1
+    ```
+    
 ### Gripper 夹爪
 
 1. 夹爪控制（通过 `/control/joint_states`控制）
@@ -328,6 +347,8 @@ cd src/agx_arm_ros
     rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/piper/test_arm_gripper_joint_states.yaml)" -1
     ```
+
+> **注意：** 以上夹爪控制指令，需在 launch 文件或参数中设置 `effector_type=agx_gripper`。
 
 ### Hand 灵巧手
 
@@ -372,6 +393,8 @@ cd src/agx_arm_ros
     rostopic pub /control/joint_states sensor_msgs/JointState \
       "$(cat test/piper/test_arm_hand_joint_states.yaml)" -1
     ```
+
+> **注意：** 以上灵巧手控制指令，需在 launch 文件或参数中设置 `effector_type=revo2`。
 
 ### 服务调用
 
@@ -423,7 +446,7 @@ cd src/agx_arm_ros
     rostopic echo /feedback/arm_status
     ```
 
-4. 主臂关节角度(主臂模式下使用)
+4. 主导臂关节角度(主导臂模式下使用)
 
     ```bash
     rostopic echo /feedback/master_joint_angles
@@ -452,7 +475,7 @@ cd src/agx_arm_ros
 | `/feedback/joint_states` | `sensor_msgs/JointState` | 关节状态 | 始终可用 |
 | `/feedback/tcp_pose` | `geometry_msgs/PoseStamped` | TCP 位姿 | 始终可用 |
 | `/feedback/arm_status` | `agx_arm_msgs/AgxArmStatus` | 机械臂状态 | 始终可用 |
-| `/feedback/master_joint_angles` | `sensor_msgs/JointState` | 主臂关节角度 | Piper 系列 |
+| `/feedback/leader_joint_angles` | `sensor_msgs/JointState` | 主导臂关节角度 | 主导臂模式 |
 | `/feedback/gripper_status` | `agx_arm_msgs/GripperStatus` | 夹爪状态 | 配置 AgxGripper |
 | `/feedback/hand_status` | `agx_arm_msgs/HandStatus` | 灵巧手状态 | 配置 Revo2 |
 
@@ -460,34 +483,51 @@ cd src/agx_arm_ros
 
 该话题包含机械臂和末端执行器的组合关节状态：
 
-**机械臂关节** (`joint1` ~ `joint6`)
+**机械臂关节** (`joint1` ~ `joint*`)
 
 | 字段 | 说明 |
 |------|------|
 | `position` | 关节角度 (rad) |
-| `velocity` | 0.0 |
-| `effort` | 0.0 |
+| `velocity` | 关节速度 (rad/s) |
+| `effort` | 关节力矩 (Nm) |
 
-**夹爪关节** (`gripper`，需配置 `effector_type=agx_gripper`)
+**夹爪关节** （需配置 `effector_type=agx_gripper`）
 
-| 字段 | 说明 |
-|------|------|
-| `position` | 夹爪宽度 (m) |
-| `velocity` | 0.0 |
-| `effort` | 力矩（N） |
+默认发布 `gripper`、`gripper_joint1`、`gripper_joint2` 三个关节；若 `publish_gripper_joint` 设为 `false`，仅发布 `gripper_joint1` 和 `gripper_joint2`（URDF 中的关节名，适配 MoveIt）。
+
+| 关节名 | `position` 说明 | `velocity` | `effort` |
+|--------|-----------------|------------|----------|
+| `gripper` | 夹爪开口宽度 (m)，范围 [0, 0.1] | 0.0 | 力 (N) |
+| `gripper_joint1` | 单侧夹片位移 = 宽度 × 0.5 (m) | 0.0 | 力 (N) |
+| `gripper_joint2` | 单侧夹片位移 = 宽度 × -0.5 (m) | 0.0 | 力 (N) |
 
 **灵巧手关节**（需配置 `effector_type=revo2`）
 
-关节命名规则：`{手}_f_joint{指}_[段]`
-- `l` = 左手，`r` = 右手
-- `joint1` = 大拇指，`joint2` ~ `joint5` = 食指到小指
-- `_1` = 指根，`_2` = 指尖（仅大拇指有两段）
+左手关节命名：
 
-示例：`l_f_joint1_1` 表示左手大拇指指根关节
+- `left_thumb_metacarpal_joint`
+- `left_thumb_proximal_joint`
+- `left_index_proximal_joint`
+- `left_middle_proximal_joint`
+- `left_ring_proximal_joint`
+- `left_pinky_proximal_joint`
 
-完整关节名列表：
-- 左手：`l_f_joint1_1`, `l_f_joint1_2`, `l_f_joint2`, `l_f_joint3`, `l_f_joint4`, `l_f_joint5`
-- 右手：`r_f_joint1_1`, `r_f_joint1_2`, `r_f_joint2`, `r_f_joint3`, `r_f_joint4`, `r_f_joint5`
+右手关节命名：
+
+- `right_thumb_metacarpal_joint`
+- `right_thumb_proximal_joint`
+- `right_index_proximal_joint`
+- `right_middle_proximal_joint`
+- `right_ring_proximal_joint`
+- `right_pinky_proximal_joint`
+
+| 字段 | 说明 |
+|------|------|
+| `position` | 手指关节角度 (rad) |
+| `velocity` | 0.0 |
+| `effort` | 0.0 |
+
+> **注意：** `*/joint_state` 话题中的 `position` 单位为 **弧度（rad）**，其他场景下仍为 **百分比**。
 
 #### `/feedback/arm_status` 详细说明
 
@@ -626,10 +666,10 @@ cd src/agx_arm_ros
 | `/control/joint_states`       | `sensor_msgs/JointState`           | 关节控制（含末端执行器） | 始终可用          |
 | `/control/move_j`             | `sensor_msgs/JointState`           | 关节控制运动       | 始终可用          |
 | `/control/move_p`             | `geometry_msgs/PoseStamped`        | 点到点运动        | 始终可用          |
-| `/control/move_l`             | `geometry_msgs/PoseStamped`        | 直线运动         | Piper 系列      |
-| `/control/move_c`             | `geometry_msgs/PoseArray`          | 圆弧运动         | Piper 系列      |
-| `/control/move_js`            | `sensor_msgs/JointState`           | MIT 模式关节运动   | Piper 系列      |
-| `/control/move_mit`           | `agx_arm_msgs/MoveMITMsg`          | MIT 力矩控制     | Piper 系列      |
+| `/control/move_l`             | `geometry_msgs/PoseStamped`        | 直线运动         | 始终可用      |
+| `/control/move_c`             | `geometry_msgs/PoseArray`          | 圆弧运动         | 始终可用      |
+| `/control/move_js`            | `sensor_msgs/JointState`           | MIT 模式关节运动   | 始终可用      |
+| `/control/move_mit`           | `agx_arm_msgs/MoveMITMsg`          | MIT 力矩控制     | 始终可用      |
 | `/control/hand`               | `agx_arm_msgs/HandCmd`             | 灵巧手控制        | 配置 Revo2      |
 | `/control/hand_position_time` | `agx_arm_msgs/HandPositionTimeCmd` | 灵巧手位置时间控制    | 配置 Revo2      |
 
@@ -664,22 +704,24 @@ rostopic pub /control/joint_states sensor_msgs/JointState \
 
 **通过 `/control/joint_states` 控制灵巧手**（需配置 `effector_type=revo2`）
 
-在 `name` 中包含灵巧手关节名，通过 `position` 设置目标位置（position 模式，范围 [0, 100]）。仅需发送要控制的关节，未包含的关节将保持当前位置。
+在 `name` 中包含灵巧手关节名，通过 `position` 设置目标位置（position 模式, 单位: rad）。仅需发送要控制的关节，未包含的关节将保持当前位置。
 
-示例：仅控制左手食指到位置 80
+示例：仅控制左手食指到位置 0.5rad
 ```bash
 rostopic pub /control/joint_states sensor_msgs/JointState \
-  "{name: [l_f_joint2], position: [80], velocity: [], effort: []}" -1
+  "{name: [left_index_proximal_joint], position: [0.5], velocity: [], effort: []}" -1
 ```
 
 | 关节名 | 说明 | position 范围 |
 |--------|------|--------------|
-| `l_f_joint1_1` / `r_f_joint1_1` | 大拇指指根 | [0, 100] |
-| `l_f_joint1_2` / `r_f_joint1_2` | 大拇指指尖 | [0, 100] |
-| `l_f_joint2` / `r_f_joint2` | 食指 | [0, 100] |
-| `l_f_joint3` / `r_f_joint3` | 中指 | [0, 100] |
-| `l_f_joint4` / `r_f_joint4` | 无名指 | [0, 100] |
-| `l_f_joint5` / `r_f_joint5` | 小指 | [0, 100] |
+| `left_thumb_metacarpal_joint` / `right_thumb_metacarpal_joint` | 大拇指指根 | [0, 1.57] |
+| `left_thumb_proximal_joint` / `right_thumb_proximal_joint` | 大拇指指尖 | [0, 1.03] |
+| `left_index_proximal_joint` / `right_index_proximal_joint` | 食指 | [0, 1.41] |
+| `left_middle_proximal_joint` / `right_middle_proximal_joint` | 中指 | [0, 1.41] |
+| `left_ring_proximal_joint` / `right_ring_proximal_joint` | 无名指 | [0, 1.41] |
+| `left_pinky_proximal_joint` / `right_pinky_proximal_joint` | 小指 | [0, 1.41] |
+
+> **注意：** `*/joint_state` 话题中的 `position` 单位为 **弧度（rad）**，其他场景下仍为 **百分比**。
 
 #### `/control/move_mit` 详细说明
 

@@ -1,8 +1,5 @@
 <launch>
   <!-- arg -->
-  <arg name="log_level" default="info" 
-       doc="Logging level (debug, info, warn, error, fatal)." />
-  
   <arg name="can_port" default="can0" 
        doc="CAN port to be used by the AGX Arm node." />
   
