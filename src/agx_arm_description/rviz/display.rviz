@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 549
   - Class: rviz/Selection
@@ -71,6 +72,16 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        gripper_link1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gripper_link2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         link1:
           Alpha: 1
           Show Axes: false
@@ -101,22 +112,71 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        link7:
+        world:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: true
-        link8:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Class: rviz/TF
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        base_link:
+          Value: true
+        gripper_base:
+          Value: true
+        gripper_link1:
+          Value: true
+        gripper_link2:
+          Value: true
+        link1:
+          Value: true
+        link2:
+          Value: true
+        link3:
+          Value: true
+        link4:
+          Value: true
+        link5:
+          Value: true
+        link6:
+          Value: true
+        tcp_link:
+          Value: true
+        world:
+          Value: true
+      Marker Alpha: 1
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        world:
+          base_link:
+            link1:
+              link2:
+                link3:
+                  link4:
+                    link5:
+                      link6:
+                        gripper_base:
+                          gripper_link1:
+                            {}
+                          gripper_link2:
+                            {}
+                        tcp_link:
+                          {}
+      Update Interval: 0
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -145,7 +205,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.8321141004562378
+      Distance: 1.9773523807525635
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -153,17 +213,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 0.16931849718093872
+        Y: -0.06445419788360596
+        Z: -0.012808366678655148
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7453980445861816
+      Pitch: 0.7603981494903564
       Target Frame: <Fixed Frame>
-      Yaw: 0.7603980898857117
+      Yaw: 0.9153982400894165
     Saved: ~
 Window Geometry:
   Displays:

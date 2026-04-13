@@ -84,16 +84,17 @@
     </node>
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="tcp_offset_publisher"
-          if="$(eval len([v for v in eval(arg('tcp_offset')) if abs(float(v)) > 1e-6]) > 0)">
-      <param name="x" value="$(eval eval(arg('tcp_offset'))[0])"/>
-      <param name="y" value="$(eval eval(arg('tcp_offset'))[1])"/>
-      <param name="z" value="$(eval eval(arg('tcp_offset'))[2])"/>
-      <param name="yaw"   value="$(eval eval(arg('tcp_offset'))[5])"/>
-      <param name="pitch" value="$(eval eval(arg('tcp_offset'))[4])"/>
-      <param name="roll"  value="$(eval eval(arg('tcp_offset'))[3])"/>
-      <param name="frame_id" value="$(eval 'link7' if arg('arm_type') == 'nero' else 'link6')"/>
-      <param name="child_frame_id" value="tcp_link"/>
-    </node>
+          if="$(eval len([v for v in eval(arg('tcp_offset')) if abs(float(v)) > 1e-6]) > 0)"
+          args="$(eval
+            str(eval(arg('tcp_offset'))[0]) + ' ' +
+            str(eval(arg('tcp_offset'))[1]) + ' ' +
+            str(eval(arg('tcp_offset'))[2]) + ' ' +
+            str(eval(arg('tcp_offset'))[5]) + ' ' +
+            str(eval(arg('tcp_offset'))[4]) + ' ' +
+            str(eval(arg('tcp_offset'))[3]) + ' ' +
+            ('link7' if arg('arm_type') == 'nero' else 'link6') + ' ' +
+            'tcp_link'
+          )"/>
   </group>
 
   <group unless="$(eval arg('namespace') != '')">
@@ -113,7 +114,7 @@
 
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
       <remap from="joint_states"
-             to="$(eval 'feedback/joint_states' if arg('follow') == 'true' else arg('control_topic'))"/>
+             to="$(eval 'feedback/joint_states' if arg('follow') else arg('control_topic'))"/>
     </node>
 
     <node name="rviz" pkg="rviz" type="rviz"
@@ -122,16 +123,17 @@
     </node>
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="tcp_offset_publisher"
-          if="$(eval len([v for v in eval(arg('tcp_offset')) if abs(float(v)) > 1e-6]) > 0)">
-      <param name="x" value="$(eval eval(arg('tcp_offset'))[0])"/>
-      <param name="y" value="$(eval eval(arg('tcp_offset'))[1])"/>
-      <param name="z" value="$(eval eval(arg('tcp_offset'))[2])"/>
-      <param name="yaw"   value="$(eval eval(arg('tcp_offset'))[5])"/>
-      <param name="pitch" value="$(eval eval(arg('tcp_offset'))[4])"/>
-      <param name="roll"  value="$(eval eval(arg('tcp_offset'))[3])"/>
-      <param name="frame_id" value="$(eval 'link7' if arg('arm_type') == 'nero' else 'link6')"/>
-      <param name="child_frame_id" value="tcp_link"/>
-    </node>
+          if="$(eval len([v for v in eval(arg('tcp_offset')) if abs(float(v)) > 1e-6]) > 0)"
+          args="$(eval
+            str(eval(arg('tcp_offset'))[0]) + ' ' +
+            str(eval(arg('tcp_offset'))[1]) + ' ' +
+            str(eval(arg('tcp_offset'))[2]) + ' ' +
+            str(eval(arg('tcp_offset'))[5]) + ' ' +
+            str(eval(arg('tcp_offset'))[4]) + ' ' +
+            str(eval(arg('tcp_offset'))[3]) + ' ' +
+            ('link7' if arg('arm_type') == 'nero' else 'link6') + ' ' +
+            'tcp_link'
+          )"/>
   </group>
 
 </launch>
