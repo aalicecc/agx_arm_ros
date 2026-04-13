@@ -1,46 +1,50 @@
 <launch>
   <!-- arg -->
-  <arg name="can_port" default="can0" 
+  <arg name="namespace" default=""
+       doc="ROS namespace for this arm instance (e.g. arm1)."/>
+
+  <arg name="can_port" default="can0"
        doc="CAN port to be used by the AGX Arm node." />
-  
-  <arg name="arm_type" default="piper" 
+
+  <arg name="arm_type" default="piper"
        doc="Robotic arm type (e.g. nero, piper, piper_h, piper_l, piper_x)." />
-  
-  <arg name="effector_type" default="none" 
+
+  <arg name="effector_type" default="none"
        doc="End effector type (e.g. agx_gripper, revo2)." />
-  
-  <arg name="revo2_type" default="left" 
+
+  <arg name="revo2_type" default="left"
        doc="Revo2 end effector type (e.g. left, right)." />
-  
-  <arg name="auto_enable" default="true" 
+
+  <arg name="auto_enable" default="true"
        doc="Automatically enable the AGX Arm node." />
-  
-  <arg name="installation_pos" default="horizontal" 
-       doc="Installation position of the arm (e.g. horizontal, left, right)." />
-  
+
+  <arg name="fast_mode" default="false"
+       doc="Enable fast mode for the AGX Arm node." />
+       
   <arg name="speed_percent" default="100" 
        doc="Movement speed as a percentage of maximum speed." />
-  
-  <arg name="pub_rate" default="200" 
+
+  <arg name="pub_rate" default="200"
        doc="Publishing rate for the AGX Arm node." />
-  
-  <arg name="enable_timeout" default="5.0" 
+
+  <arg name="enable_timeout" default="5.0"
        doc="Timeout in seconds for arm enable/disable operations." />
-  
-  <arg name="payload" default="empty" 
-       doc="Payload type (e.g. empty, half, full)." />
   
   <arg name="follow" default="true" 
        doc="Follow real arm state." />
-  
-  <arg name="control" default="false" 
+
+  <arg name="control" default="false"
        doc="Whether to publish control topics from the RViz-side joint state publisher." />
-  
-  <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]" 
+
+  <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
        doc="TCP offset in x, y, z, roll, pitch, yaw in meters/radians." />
+
+  <arg name="gripper_default_effort" default="1.0"
+       doc="Default effort for gripper commands (>= 0.0)." />
 
   <!-- description:统一使用 agx_arm_description/launch/display.launch -->
   <include file="$(find agx_arm_description)/launch/display.launch">
+    <arg name="namespace" value="$(arg namespace)" />
     <arg name="arm_type" value="$(arg arm_type)" />
     <arg name="effector_type" value="$(arg effector_type)" />
     <arg name="revo2_type" value="$(arg revo2_type)" />
@@ -52,15 +56,16 @@
 
   <!-- agx_arm -->
   <include file="$(find agx_arm_ctrl)/launch/start_single_agx_arm.launch">
+    <arg name="namespace" value="$(arg namespace)" />
     <arg name="can_port" value="$(arg can_port)" />
     <arg name="pub_rate" value="$(arg pub_rate)" />
     <arg name="auto_enable" value="$(arg auto_enable)" />
+    <arg name="fast_mode" value="$(arg fast_mode)" />
     <arg name="arm_type" value="$(arg arm_type)" />
     <arg name="speed_percent" value="$(arg speed_percent)" />
     <arg name="enable_timeout" value="$(arg enable_timeout)" />
-    <arg name="installation_pos" value="$(arg installation_pos)" />
     <arg name="effector_type" value="$(arg effector_type)" />
-    <arg name="payload" value="$(arg payload)" />
     <arg name="tcp_offset" value="$(arg tcp_offset)" />
+    <arg name="gripper_default_effort" value="$(arg gripper_default_effort)" />
   </include>
 </launch>

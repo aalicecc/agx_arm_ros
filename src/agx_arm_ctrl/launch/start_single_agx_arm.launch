@@ -1,73 +1,115 @@
 <launch>
   <!-- arg -->
-  <arg name="can_port" default="can0" 
+  <arg name="namespace" default=""
+       doc="ROS namespace for this arm instance (e.g. arm1)."/>
+
+  <arg name="can_port" default="can0"
        doc="CAN port to be used by the AGX Arm node." />
-  
-  <arg name="arm_type" default="piper" 
+
+  <arg name="arm_type" default="piper"
        doc="Robotic arm type (e.g. nero, piper, piper_h, piper_l, piper_x)." />
-  
-  <arg name="effector_type" default="none" 
+
+  <arg name="effector_type" default="none"
        doc="End effector type (e.g. agx_gripper, revo2)." />
-  
-  <arg name="auto_enable" default="true" 
+
+  <arg name="auto_enable" default="true"
        doc="Automatically enable the AGX Arm node." />
-  
-  <arg name="installation_pos" default="horizontal" 
-       doc="Installation position of the arm (e.g. horizontal, left, right)." />
-  
-  <arg name="speed_percent" default="100" 
+
+  <arg name="fast_mode" default="false"
+       doc="Enable fast mode for the AGX Arm node." />
+
+  <arg name="speed_percent" default="100"
        doc="Movement speed as a percentage of maximum speed." />
-  
-  <arg name="pub_rate" default="200" 
+
+  <arg name="pub_rate" default="200"
        doc="Publishing rate for the AGX Arm node." />
-  
-  <arg name="enable_timeout" default="5.0" 
+
+  <arg name="enable_timeout" default="5.0"
        doc="Timeout in seconds for arm enable/disable operations." />
-  
-  <arg name="payload" default="empty" 
-       doc="Payload type (e.g. empty, half, full)." />
-  
-  <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]" 
+
+  <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
        doc="TCP offset in x, y, z, roll, pitch, yaw in meters/radians." />
-  
-  <arg name="publish_gripper_joint" default="true" 
-       doc='Publish "gripper" (opening width) joint in /feedback/joint_states. Set false when used with MoveIt (URDF only has gripper_joint1/2).' />
 
-  <node pkg="agx_arm_ctrl" type="agx_arm_ctrl_single_node.py" name="agx_arm_ctrl_single_node" output="screen">
-    <!-- params -->
-    <param name="can_port" value="$(arg can_port)" />
-    <param name="pub_rate" value="$(arg pub_rate)" />
-    <param name="auto_enable" value="$(arg auto_enable)" />
-    <param name="arm_type" value="$(arg arm_type)" />
-    <param name="speed_percent" value="$(arg speed_percent)" />
-    <param name="enable_timeout" value="$(arg enable_timeout)" />
-    <param name="installation_pos" value="$(arg installation_pos)" />
-    <param name="effector_type" value="$(arg effector_type)" />
-    <param name="payload" value="$(arg payload)" />
-    <rosparam param="tcp_offset" subst_value="true">$(arg tcp_offset)</rosparam>
-    <param name="publish_gripper_joint" value="$(arg publish_gripper_joint)" />
+  <arg name="gripper_default_effort" default="1.0"
+       doc="Default effort for gripper commands (>= 0.0)." />
 
-    <!-- remaps -->
-    <remap from="/feedback/joint_states" to="/feedback/joint_states" />
-    <remap from="/feedback/tcp_pose" to="/feedback/tcp_pose" />
-    <remap from="/feedback/arm_status" to="/feedback/arm_status" />
-    <remap from="/feedback/arm_ctrl_states" to="/feedback/arm_ctrl_states" />
-    <remap from="/feedback/gripper_status" to="/feedback/gripper_status" />
-    <remap from="/feedback/hand_status" to="/feedback/hand_status" />
+  <arg name="publish_gripper_joint" default="true"
+       doc='Publish "gripper" (opening width) joint in feedback/joint_states. Set false when used with MoveIt (URDF only has gripper_joint1/2).' />
 
-    <remap from="/control/joint_states" to="/control/joint_states" />
-    <remap from="/control/move_j" to="/control/move_j" />
-    <remap from="/control/move_p" to="/control/move_p" />
-    <remap from="/control/move_l" to="/control/move_l" />
-    <remap from="/control/move_c" to="/control/move_c" />
-    <remap from="/control/move_mit" to="/control/move_mit" />
-    <remap from="/control/move_js" to="/control/move_js" />
-    <remap from="/control/gripper" to="/control/gripper" />
-    <remap from="/control/hand" to="/control/hand" />
-    <remap from="/control/hand_position_time" to="/control/hand_position_time" />
+  <group if="$(eval arg('namespace') != '')" ns="$(arg namespace)">
+    <node pkg="agx_arm_ctrl" type="agx_arm_ctrl_single_node.py" name="agx_arm_ctrl_single_node" output="screen">
+     <param name="can_port" value="$(arg can_port)" />
+     <param name="pub_rate" value="$(arg pub_rate)" />
+     <param name="auto_enable" value="$(arg auto_enable)" />
+     <param name="fast_mode" value="$(arg fast_mode)" />
+     <param name="speed_percent" value="$(arg speed_percent)" />
+     <param name="enable_timeout" value="$(arg enable_timeout)" />
+     <param name="effector_type" value="$(arg effector_type)" />
+     <rosparam param="tcp_offset" subst_value="true">$(arg tcp_offset)</rosparam>
+     <param name="gripper_default_effort" value="$(arg gripper_default_effort)" />
+     <param name="publish_gripper_joint" value="$(arg publish_gripper_joint)" />
+    
+     <!-- feedback topics -->
+     <remap from="feedback/joint_states" to="feedback/joint_states"/>
+     <remap from="feedback/tcp_pose" to="feedback/tcp_pose"/>
+     <remap from="feedback/arm_status" to="feedback/arm_status"/>
+     <remap from="feedback/leader_joint_angles" to="feedback/leader_joint_angles"/>
+     <remap from="feedback/gripper_status" to="feedback/gripper_status"/>
+     <remap from="feedback/hand_status" to="feedback/hand_status"/>
 
-    <remap from="/enable_agx_arm" to="/enable_agx_arm" />
-    <remap from="/move_home" to="/move_home" />
-    <remap from="/exit_teach_mode" to="/exit_teach_mode" />
-  </node>
+     <!-- control topics -->
+     <remap from="control/joint_states" to="control/joint_states"/>
+     <remap from="control/move_j" to="control/move_j"/>
+     <remap from="control/move_p" to="control/move_p"/>
+     <remap from="control/move_l" to="control/move_l"/>
+     <remap from="control/move_c" to="control/move_c"/>
+     <remap from="control/move_js" to="control/move_js"/>
+     <remap from="control/move_mit" to="control/move_mit"/>
+     <remap from="control/hand" to="control/hand"/>
+     <remap from="control/hand_position_time" to="control/hand_position_time"/>
+    
+     <!-- services -->
+     <remap from="enable_agx_arm" to="enable_agx_arm"/>
+     <remap from="move_home" to="move_home"/>
+     <remap from="emergency_stop" to="emergency_stop"/>
+     <remap from="exit_teach_mode" to="exit_teach_mode"/>
+    </node>
+  </group>
+
+  <group unless="$(eval arg('namespace') != '')">
+    <node pkg="agx_arm_ctrl" type="agx_arm_ctrl_single_node.py" name="agx_arm_ctrl_single_node" output="screen">
+      <param name="can_port" value="$(arg can_port)" />
+      <param name="pub_rate" value="$(arg pub_rate)" />
+      <param name="auto_enable" value="$(arg auto_enable)" />
+      <param name="fast_mode" value="$(arg fast_mode)" />
+      <param name="gripper_default_effort" value="$(arg gripper_default_effort)" />
+      <param name="arm_type" value="$(arg arm_type)" />
+      <param name="speed_percent" value="$(arg speed_percent)" />
+      <param name="enable_timeout" value="$(arg enable_timeout)" />
+      <param name="installation_pos" value="$(arg installation_pos)" />
+      <param name="effector_type" value="$(arg effector_type)" />
+      <param name="payload" value="$(arg payload)" />
+      <rosparam param="tcp_offset" subst_value="true">$(arg tcp_offset)</rosparam>
+      <param name="publish_gripper_joint" value="$(arg publish_gripper_joint)" />
+
+      <!-- feedback topics -->
+     <remap from="feedback/joint_states" to="feedback/joint_states"/>
+     <remap from="feedback/tcp_pose" to="feedback/tcp_pose"/>
+     <remap from="feedback/arm_status" to="feedback/arm_status"/>
+     <remap from="feedback/leader_joint_angles" to="feedback/leader_joint_angles"/>
+     <remap from="feedback/gripper_status" to="feedback/gripper_status"/>
+     <remap from="feedback/hand_status" to="feedback/hand_status"/>
+
+     <!-- control topics -->
+     <remap from="control/joint_states" to="control/joint_states"/>
+     <remap from="control/move_j" to="control/move_j"/>
+     <remap from="control/move_p" to="control/move_p"/>
+     <remap from="control/move_l" to="control/move_l"/>
+     <remap from="control/move_c" to="control/move_c"/>
+     <remap from="control/move_js" to="control/move_js"/>
+     <remap from="control/move_mit" to="control/move_mit"/>
+     <remap from="control/hand" to="control/hand"/>
+     <remap from="control/hand_position_time" to="control/hand_position_time"/>
+    </node>
+  </group>
 </launch>

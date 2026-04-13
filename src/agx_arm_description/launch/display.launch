@@ -1,17 +1,26 @@
 <launch>
-  <arg name="arm_type" default="piper" doc="Robotic arm type: nero, piper, piper_h, piper_l, piper_x"/>
-  <arg name="custom_model" default="" doc="Custom model path (absolute or relative to agx_arm_urdf/). Overrides all other model selection."/>
-
-  <arg name="effector_type" default="none" doc="End effector type: none, agx_gripper, revo2"/>
-  <arg name="revo2_type" default="left" doc="Revo2 side: left or right (only used when effector_type=revo2)"/>
-
-  <arg name="pub_rate" default="200" doc="Joint state publishing rate (Hz)"/>
-  <arg name="gui" default="true" doc="Enable joint_state_publisher_gui (vs headless joint_state_publisher)"/>
-  <arg name="control" default="true" doc="Enable joint state publisher nodes (control topic)"/>
-  <arg name="follow" default="false" doc="Follow mode: remap joint_states to /feedback/joint_states for robot_state_publisher"/>
-
+  <arg name="namespace" default=""
+       doc="ROS namespace for this arm instance (e.g. arm1)."/>
+  <arg name="arm_type" default="piper"
+       doc="Robotic arm type (e.g. nero, piper, piper_h, piper_l, piper_x)."/>
+  <arg name="custom_model" default=""
+       doc="Optional custom model path. Prefer absolute path, or relative path under agx_arm_urdf/. If set, arm_type and effector_type are ignored."/>
+  <arg name="effector_type" default="none"
+       doc="End effector type (e.g. none, agx_gripper, revo2)."/>
+  <arg name="revo2_type" default="left"
+       doc="Revo2 end effector type (e.g. left, right)."/>
+  <arg name="pub_rate" default="200"
+       doc="Publishing rate for the AGX Arm node."/>
+  <arg name="gui" default="true"
+       doc="Flag to enable joint_state_publisher_gui."/>
+  <arg name="control" default="true"
+       doc="Enable joint state publisher nodes (control topic)."/>
   <arg name="rvizconfig" default="$(find agx_arm_description)/rviz/display.rviz"
-       doc="Absolute path to RViz configuration file"/>
+       doc="Absolute path to rviz config file."/>
+  <arg name="follow" default="false"
+       doc="Flag to enable follow mode."/>
+  <arg name="control_topic" default="control/joint_states"
+       doc="Topic to publish joint slider targets (from joint_state_publisher_gui)."/>
   <arg name="tcp_offset" default="[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
        doc="TCP offset [x, y, z, rx, ry, rz] in meters/radians. Non-zero values publish static TF to tcp_link."/>
 
@@ -49,38 +58,80 @@
     )
   )"/>
 
-  <param name="robot_description" command="xacro $(arg model_path)"/>
+  <group if="$(eval arg('namespace') != '')" ns="$(arg namespace)">
+    <param name="robot_description" command="xacro $(arg model_path)"/>
 
-  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"
-        if="$(eval arg('control') and not arg('gui'))">
-    <param name="rate" value="$(arg pub_rate)"/>
-    <remap from="/joint_states" to="/control/joint_states"/>
-  </node>
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"
+          if="$(eval arg('control') and not arg('gui'))">
+      <param name="rate" value="$(arg pub_rate)"/>
+      <remap from="joint_states" to="$(arg control_topic)"/>
+    </node>
 
-  <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
-        if="$(eval arg('control') and arg('gui'))">
-    <param name="rate" value="$(arg pub_rate)"/>
-    <remap from="/joint_states" to="/control/joint_states"/>
-  </node>
+    <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
+          if="$(eval arg('control') and arg('gui'))">
+      <param name="rate" value="$(arg pub_rate)"/>
+      <remap from="joint_states" to="$(arg control_topic)"/>
+    </node>
 
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
-    <remap from="/joint_states"
-           to="$(eval '/feedback/joint_states' if arg('follow') else '/control/joint_states')"/>
-  </node>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+      <remap from="joint_states"
+             to="$(eval 'feedback/joint_states' if arg('follow') else arg('control_topic'))"/>
+    </node>
 
-  <node name="rviz" pkg="rviz" type="rviz"
-        args="-d $(arg rvizconfig)" output="screen"/>
+    <node name="rviz" pkg="rviz" type="rviz"
+          args="-d $(arg rvizconfig)" output="screen">
+          <remap from="/robot_description" to="robot_description"/>
+    </node>
 
-  <node pkg="tf2_ros" type="static_transform_publisher" name="tcp_offset_publisher"
-        if="$(eval len([v for v in eval(arg('tcp_offset')) if abs(float(v)) > 1e-6]) > 0)">
-    <param name="x" value="$(eval eval(arg('tcp_offset'))[0])"/>
-    <param name="y" value="$(eval eval(arg('tcp_offset'))[1])"/>
-    <param name="z" value="$(eval eval(arg('tcp_offset'))[2])"/>
-    <param name="yaw"   value="$(eval eval(arg('tcp_offset'))[5])"/>
-    <param name="pitch" value="$(eval eval(arg('tcp_offset'))[4])"/>
-    <param name="roll"  value="$(eval eval(arg('tcp_offset'))[3])"/>
-    <param name="frame_id" value="$(eval 'link7' if arg('arm_type') == 'nero' else 'link6')"/>
-    <param name="child_frame_id" value="tcp_link"/>
-  </node>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="tcp_offset_publisher"
+          if="$(eval len([v for v in eval(arg('tcp_offset')) if abs(float(v)) > 1e-6]) > 0)">
+      <param name="x" value="$(eval eval(arg('tcp_offset'))[0])"/>
+      <param name="y" value="$(eval eval(arg('tcp_offset'))[1])"/>
+      <param name="z" value="$(eval eval(arg('tcp_offset'))[2])"/>
+      <param name="yaw"   value="$(eval eval(arg('tcp_offset'))[5])"/>
+      <param name="pitch" value="$(eval eval(arg('tcp_offset'))[4])"/>
+      <param name="roll"  value="$(eval eval(arg('tcp_offset'))[3])"/>
+      <param name="frame_id" value="$(eval 'link7' if arg('arm_type') == 'nero' else 'link6')"/>
+      <param name="child_frame_id" value="tcp_link"/>
+    </node>
+  </group>
+
+  <group unless="$(eval arg('namespace') != '')">
+    <param name="robot_description" command="xacro $(arg model_path)"/>
+
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"
+          if="$(eval arg('control') and not arg('gui'))">
+      <param name="rate" value="$(arg pub_rate)"/>
+      <remap from="joint_states" to="$(arg control_topic)"/>
+    </node>
+
+    <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
+          if="$(eval arg('control') and arg('gui'))">
+      <param name="rate" value="$(arg pub_rate)"/>
+      <remap from="joint_states" to="$(arg control_topic)"/>
+    </node>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+      <remap from="joint_states"
+             to="$(eval 'feedback/joint_states' if arg('follow') == 'true' else arg('control_topic'))"/>
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz"
+          args="-d $(arg rvizconfig)" output="screen">
+          <remap from="/robot_description" to="robot_description"/>
+    </node>
+
+    <node pkg="tf2_ros" type="static_transform_publisher" name="tcp_offset_publisher"
+          if="$(eval len([v for v in eval(arg('tcp_offset')) if abs(float(v)) > 1e-6]) > 0)">
+      <param name="x" value="$(eval eval(arg('tcp_offset'))[0])"/>
+      <param name="y" value="$(eval eval(arg('tcp_offset'))[1])"/>
+      <param name="z" value="$(eval eval(arg('tcp_offset'))[2])"/>
+      <param name="yaw"   value="$(eval eval(arg('tcp_offset'))[5])"/>
+      <param name="pitch" value="$(eval eval(arg('tcp_offset'))[4])"/>
+      <param name="roll"  value="$(eval eval(arg('tcp_offset'))[3])"/>
+      <param name="frame_id" value="$(eval 'link7' if arg('arm_type') == 'nero' else 'link6')"/>
+      <param name="child_frame_id" value="tcp_link"/>
+    </node>
+  </group>
 
 </launch>
