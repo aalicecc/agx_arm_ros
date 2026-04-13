@@ -169,7 +169,8 @@ roslaunch agx_arm_ctrl start_single_agx_arm_rviz.launch can_port:=can0 arm_type:
 |------|--------|------|--------|
 | `can_port` | `can0` | CAN 端口 | - |
 | `arm_type` | `piper` | 机械臂型号 | `nero`, `piper`, `piper_h`, `piper_l`, `piper_x` |
-| `effector_type` | `none` | 末端执行器类型 | `none`, `agx_gripper`, `revo2` || `namespace` | 空字符串 | 机械臂实例命名空间 | 任意合法 ROS 命名空间 |
+| `effector_type` | `none` | 末端执行器类型 | `none`, `agx_gripper`, `revo2` |
+| `namespace` | 空字符串 | 机械臂实例命名空间 | 任意合法 ROS 命名空间 |
 | `auto_enable` | `true` | 启动时自动使能 | `true`, `false` |
 | `fast_mode` | `false` | 启用快速模式（如果启用，`/control/joint_states` 内部将改用无平滑无插值的 `move_js` 关节控制接口控制机械臂） | `true`, `false` |
 | `speed_percent` | `100` | 运动速度 (%) | `0-100` |
@@ -215,6 +216,7 @@ roslaunch agx_arm_description display.launch arm_type:=piper
 | `custom_model` | 空字符串 | 可选自定义模型路径；相对路径时相对于 `agx_arm_urdf/` 目录，绝对路径可指向任意 URDF/xacro 文件。若设置该参数，则 `arm_type` 和 `effector_type` 将被忽略 |
 | `effector_type` | `none` | 末端执行器类型，预设值：`none`, `agx_gripper`, `revo2` |
 | `revo2_type` | `left` | Revo2 灵巧手类型，预设值：`left`, `right` |
+| `namespace` | 空字符串 | 机械臂实例命名空间 | 任意合法 ROS 命名空间 |
 | `pub_rate` | `200` | 状态发布频率 (Hz) |
 | `gui` | `true` | 是否启用 joint_state_publisher_gui 关节滑条控制界面 |
 | `rvizconfig` | 内置配置 | 自定义 RViz 配置文件的绝对路径 |

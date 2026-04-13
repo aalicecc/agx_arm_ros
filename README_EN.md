@@ -216,6 +216,7 @@ roslaunch agx_arm_description display.launch arm_type:=piper
 | `custom_model` | empty string | Optional custom model path. If relative, it is resolved under `agx_arm_urdf/`; if absolute, it can point to any URDF/xacro file. When set, `arm_type` and `effector_type` are ignored |
 | `effector_type` | `none` | End-effector type. Presets: `none`, `agx_gripper`, `revo2` |
 | `revo2_type` | `left` | Revo2 dexterous hand type. Presets: `left`, `right` |
+| `namespace` | empty string | Arm instance namespace | Any valid ROS namespace |
 | `pub_rate` | `200` | Status publish rate (Hz) |
 | `gui` | `true` | Whether to enable the `joint_state_publisher_gui` slider control interface |
 | `rvizconfig` | Built-in config | Absolute path to a custom RViz configuration file |
